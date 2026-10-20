@@ -4,7 +4,7 @@
 {% if sessions %}
 <table>
   <thead>
-    <tr><th>Created</th><th>Source</th><th>Venue</th><th></th></tr>
+    <tr><th>Created</th><th>Source</th><th>Venue</th><th>Status</th><th></th><th></th></tr>
   </thead>
   <tbody>
     {% for s in sessions %}
@@ -12,7 +12,14 @@
       <td>{{ s.created_at[:19].replace('T', ' ') }} UTC</td>
       <td>{{ s.source_filename }}</td>
       <td>{{ s.venue }}</td>
+      <td>{{ s.status }}</td>
       <td><a href="/session/{{ s.id }}">View</a></td>
+      <td>
+        <form action="/delete/{{ s.id }}" method="post" style="display:inline"
+              onsubmit="return confirm('Delete this seminar session?')">
+          <button type="submit" class="danger">Delete</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </tbody>

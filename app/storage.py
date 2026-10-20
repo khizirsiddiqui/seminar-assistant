@@ -63,3 +63,12 @@ def list_sessions() -> list[str]:
     if not DATA_DIR.is_dir():
         return []
     return sorted((p.name for p in DATA_DIR.iterdir() if p.is_dir()), reverse=True)
+
+
+def has_selection(sid: str) -> bool:
+    return (_dir(sid) / "selected.json").exists()
+
+
+def delete_session(sid: str) -> None:
+    import shutil
+    shutil.rmtree(_dir(sid))

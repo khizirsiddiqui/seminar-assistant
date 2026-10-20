@@ -151,9 +151,11 @@ async def history(request: Request):
     sessions = []
     for sid in storage.list_sessions():
         try:
-            sessions.append(storage.get_session(sid))
+            meta = storage.get_session(sid)
         except FileNotFoundError:
             continue
+        meta["status"] = "generated" if storage.has_selection(sid) else "parsed"
+        sessions.append(meta)
     return templates.TemplateResponse(request=request, name="history.html",
                                       context={"sessions": sessions})
 
@@ -162,10 +164,28 @@ async def history(request: Request):
 async def session_detail(request: Request, sid: str):
     try:
         meta = storage.get_session(sid)
-        rows = storage.load_selection(sid)
     except FileNotFoundError:
         return templates.TemplateResponse(
             request=request, name="error.html", status_code=404,
             context={"message": f"Session {sid} not found."})
+
+    if storage.has_selection(sid):
+        rows = storage.load_selection(sid)
+        status = "generated"
+    else:
+        rows = storage.load_parsed(sid)
+        status = "parsed"
     return templates.TemplateResponse(request=request, name="session.html",
-                                      context={"sid": sid, "meta": meta, "rows": rows})
+                                      context={"sid": sid, "meta": meta, "rows": rows,
+                                               "status": status})
+
+
+@app.post("/delete/{sid}")
+async def delete_session(request: Request, sid: str):
+    try:
+        storage.delete_session(sid)
+    except FileNotFoundError:
+        return templates.TemplateResponse(
+            request=request, name="error.html", status_code=404,
+            context={"message": f"Session {sid} not found."})
+    return RedirectResponse("/history", status_code=303)
