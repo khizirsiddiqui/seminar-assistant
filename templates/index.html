@@ -60,6 +60,29 @@
         }
       });
     }
+
+    // Phase 2: upload done -> indeterminate spinner while the AI parses
+    function showParsing() {
+      label.innerHTML = spinnerHtml + "AI is parsing your schedule…";
+      fill.style.transition = "none";
+      fill.style.width = "15%";
+      clearInterval(label._t);
+      var inc = true;
+      label._t = setInterval(function () {
+        var w = parseFloat(fill.style.width);
+        w += inc ? 3 : -3;
+        if (w >= 90) inc = false;
+        if (w <= 10) inc = true;
+        fill.style.width = w + "%";
+      }, 120);
+    }
+    xhr.upload.addEventListener("load", showParsing);
+
+    // No upload phase at all (pasted text): straight to spinner
+    if (!hasFile) {
+      label.textContent = "";
+      showParsing();
+    }
     xhr.addEventListener("load", function () {
       // NOTE: XHR auto-follows the 303 redirect, so the final status is 200
       // with the confirm page HTML — success/failure is detected by content.
