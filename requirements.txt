@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+pypdf
+openai
+icalendar
+pydantic-settings
+pytest
+httpx
