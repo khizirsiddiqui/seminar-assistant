@@ -18,6 +18,14 @@
     .error { color: #b91c1c; }
     nav { margin-bottom: 1.5rem; }
     nav a { margin-right: 1rem; }
+    .progress-container { display: none; margin-top: 1rem; }
+    .progress-container.visible { display: block; }
+    .progress-bar-track { background: #e5e7eb; border-radius: 4px; height: 10px; width: 100%; max-width: 480px; overflow: hidden; }
+    .progress-bar-fill { background: #2563eb; height: 100%; width: 0%; transition: width 0.2s; }
+    .progress-label { font-size: 0.9rem; color: #555; margin-top: 0.4rem; }
+    .spinner { display: inline-block; width: 22px; height: 22px; border: 3px solid #e5e7eb;
+      border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>

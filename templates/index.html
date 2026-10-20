@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Add a seminar schedule</h2>
-<form action="/parse" method="post" enctype="multipart/form-data">
+<form id="parse-form" action="/parse" method="post" enctype="multipart/form-data">
   <label for="file">Schedule file (PDF / CSV / TXT)</label>
   <input type="file" id="file" name="file" accept=".pdf,.csv,.txt,text/plain,text/csv,application/pdf">
 
@@ -20,6 +20,73 @@
   <label for="end_time">End time</label>
   <input type="time" id="end_time" name="end_time" value="15:45" required>
 
-  <button type="submit">Parse schedule</button>
+  <button type="submit" id="submit-btn">Parse schedule</button>
 </form>
+
+<div class="progress-container" id="progress">
+  <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
+  <p class="progress-label" id="progress-label"></p>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById("parse-form");
+  var bar = document.getElementById("progress");
+  var fill = document.getElementById("progress-fill");
+  var label = document.getElementById("progress-label");
+  var btn = document.getElementById("submit-btn");
+  var spinnerHtml = '<span class="spinner"></span> ';
+
+  function show() { bar.classList.add("visible"); }
+  function hide() { bar.classList.remove("visible"); }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    show();
+    btn.disabled = true;
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/parse");
+
+    // Phase 1: real upload progress bar (only meaningful when a file is attached)
+    var hasFile = document.getElementById("file").files.length > 0;
+    if (hasFile) {
+      label.textContent = "Uploading file…";
+      xhr.upload.addEventListener("progress", function (ev) {
+        if (ev.lengthComputable) {
+          var pct = Math.round((ev.loaded / ev.total) * 100);
+          fill.style.width = pct + "%";
+          label.textContent = "Uploading file… " + pct + "%";
+        }
+      });
+    }
+    xhr.addEventListener("load", function () {
+      // NOTE: XHR auto-follows the 303 redirect, so the final status is 200
+      // with the confirm page HTML — success/failure is detected by content.
+      clearInterval(label._t);
+      var doc = new DOMParser().parseFromString(xhr.responseText, "text/html");
+      var msg = doc.querySelector(".error");
+      if (msg) {
+        hide();
+        btn.disabled = false;
+        alert(msg.textContent.trim());
+      } else {
+        // success: the browser already followed the redirect; go to final URL
+        window.location.href = xhr.responseURL || "/history";
+      }
+    });
+
+
+    xhr.addEventListener("error", function () {
+      clearInterval(label._t);
+      hide();
+      btn.disabled = false;
+      alert("Request failed. Is the server running?");
+    });
+
+
+    xhr.send(new FormData(form));
+  });
+})();
+</script>
 {% endblock %}
