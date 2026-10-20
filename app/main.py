@@ -1,5 +1,5 @@
+import logging
 from datetime import date
-from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
@@ -8,6 +8,8 @@ from fastapi.templating import Jinja2Templates
 from app import llm, storage
 from app.extract import extract_text
 from app.ics import build_calendar
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="Seminar Guide")
 templates = Jinja2Templates(directory="templates")
