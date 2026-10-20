@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Prepare: {{ row.paper }}</h2>
+<table>
+  <tr><th>Date</th><td>{{ row.date }}</td></tr>
+  <tr><th>Presenter</th><td>{{ row.student }}</td></tr>
+  <tr><th>Paper</th><td>{{ row.paper }}</td></tr>
+</table>
+<p>Preparation content will be added later.</p>
+<p><a href="/result/{{ sid }}">&larr; Back to session</a></p>
+{% endblock %}

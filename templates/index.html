@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Add a seminar schedule</h2>
+<form action="/parse" method="post" enctype="multipart/form-data">
+  <label for="file">Schedule file (PDF / CSV / TXT)</label>
+  <input type="file" id="file" name="file" accept=".pdf,.csv,.txt,text/plain,text/csv,application/pdf">
+
+  <label for="pasted_text">…or paste the schedule text</label>
+  <textarea id="pasted_text" name="pasted_text" rows="8" placeholder="27.10.2026  Alice Schmidt — Attention Is All You Need&#10;03.11.2026  Bob Weber — BERT"></textarea>
+
+  <label for="venue">Venue</label>
+  <input type="text" id="venue" name="venue" placeholder="Room 1.06, Sand 14, Tübingen" required>
+
+  <label for="assume_year">Year (used when dates have none)</label>
+  <input type="number" id="assume_year" name="assume_year" value="{{ current_year }}">
+
+  <label for="start_time">Start time</label>
+  <input type="time" id="start_time" name="start_time" value="14:15" required>
+
+  <label for="end_time">End time</label>
+  <input type="time" id="end_time" name="end_time" value="15:45" required>
+
+  <button type="submit">Parse schedule</button>
+</form>
+{% endblock %}

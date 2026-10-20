@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Confirm parsed sessions</h2>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<p>The AI parsed {{ rows|length }} session(s). Verify they are correct, deselect anything you
+  don't want, adjust the venue and times, then submit.</p>
+<form action="/generate/{{ sid }}" method="post">
+  <table>
+    <thead>
+      <tr><th></th><th>Date</th><th>Student</th><th>Paper</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td><input type="checkbox" name="row_index" value="{{ loop.index0 }}" checked></td>
+        <td>{{ row.date }}</td>
+        <td>{{ row.student }}</td>
+        <td>{{ row.paper }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <label for="venue">Venue</label>
+  <input type="text" id="venue" name="venue" value="{{ meta.venue }}" required>
+
+  <label for="start_time">Start time</label>
+  <input type="time" id="start_time" name="start_time" value="{{ meta.start_time }}" required>
+
+  <label for="end_time">End time</label>
+  <input type="time" id="end_time" name="end_time" value="{{ meta.end_time }}" required>
+
+  <button type="submit">Generate calendar (.ics)</button>
+</form>
+{% endblock %}

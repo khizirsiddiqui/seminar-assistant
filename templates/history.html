@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>History</h2>
+{% if sessions %}
+<table>
+  <thead>
+    <tr><th>Created</th><th>Source</th><th>Venue</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for s in sessions %}
+    <tr>
+      <td>{{ s.created_at[:19].replace('T', ' ') }} UTC</td>
+      <td>{{ s.source_filename }}</td>
+      <td>{{ s.venue }}</td>
+      <td><a href="/session/{{ s.id }}">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No saved seminars yet. <a href="/">Parse a schedule</a> to get started.</p>
+{% endif %}
+{% endblock %}

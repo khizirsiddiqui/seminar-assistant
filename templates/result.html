@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Done!</h2>
+<p>Your seminar calendar has been created with {{ rows|length }} event(s).</p>
+<p><a class="button" href="/download/{{ sid }}">Download .ics</a></p>
+
+<h3>Selected sessions</h3>
+<table>
+  <thead>
+    <tr><th>Date</th><th>Student</th><th>Paper</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.date }}</td>
+      <td>{{ row.student }}</td>
+      <td>{{ row.paper }}</td>
+      <td><a href="/prepare/{{ sid }}/{{ loop.index0 }}">Prepare</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p>Import the downloaded file into your calendar app (Google Calendar, Apple Calendar, …)
+  to add the weekly seminar schedule. Each event's description lists the paper and presenter.</p>
+{% endblock %}

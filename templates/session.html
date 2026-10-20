@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Seminar session {{ sid }}</h2>
+<table>
+  <tr><th>Created</th><td>{{ meta.created_at[:19].replace('T', ' ') }} UTC</td></tr>
+  <tr><th>Source</th><td>{{ meta.source_filename }}</td></tr>
+  <tr><th>Venue</th><td>{{ meta.venue }}</td></tr>
+  <tr><th>Time</th><td>{{ meta.start_time }}–{{ meta.end_time }}</td></tr>
+</table>
+
+<h3>Sessions</h3>
+<table>
+  <thead>
+    <tr><th>Date</th><th>Student</th><th>Paper</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.date }}</td>
+      <td>{{ row.student }}</td>
+      <td>{{ row.paper }}</td>
+      <td><a href="/prepare/{{ sid }}/{{ loop.index0 }}">Prepare</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p><a class="button" href="/download/{{ sid }}">Download .ics</a></p>
+{% endblock %}
