@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Seminar Guide is a FastAPI web app that turns an uploaded/pasted seminar schedule into an ICS calendar and per-paper AI reading guides. The pipeline is:
+Seminar Assistant is a FastAPI web app that turns an uploaded/pasted seminar schedule into an ICS calendar and per-paper AI reading guides. The pipeline is:
 parse a schedule with an LLM → let the user pick sessions → generate a calendar → generate a per-paper preparation guide with AI-generated sections.
 
 The app is server-rendered with Jinja2 templates and stores all data as JSON files under `data/sessions/` (no database). LLM calls go through an OpenAI-compatible HTTP API.

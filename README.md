@@ -1,6 +1,6 @@
-# Seminar Guide
+# Seminar Assistant
 
-Seminar Guide turns a seminar schedule into an ICS calendar and AI-generated per-paper reading guides. Upload or paste a schedule, let the LLM extract each session's date, presenter and paper, review the result, generate a calendar, and then build a preparation guide for every talk — including the questions you might want to ask the speaker.
+Seminar Assistant turns a seminar schedule into an ICS calendar and AI-generated per-paper reading guides. Upload or paste a schedule, let the LLM extract each session's date, presenter and paper, review the result, generate a calendar, and then build a preparation guide for every talk — including the questions you might want to ask the speaker.
 
 Built with **FastAPI**, server-rendered **Jinja2** templates, and flat-file JSON storage (no database). All LLM calls go through an OpenAI-compatible HTTP API.
 

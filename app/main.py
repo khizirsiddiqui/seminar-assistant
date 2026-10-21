@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 logger = logging.getLogger("seminar.main")
 
-app = FastAPI(title="Seminar Guide")
+app = FastAPI(title="Seminar Assistant")
 templates = Jinja2Templates(directory="templates")
 
 _MD_EXTENSIONS = ["fenced_code", "sane_lists"]

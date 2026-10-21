@@ -33,7 +33,7 @@ def _strip_references(text: str) -> str:
 _ARXIV_MAX_RETRIES = 4
 _ARXIV_DEFAULT_BACKOFF_SECONDS = 1.0
 _ARXIV_MAX_BACKOFF_SECONDS = 30.0
-_ARXIV_API_HEADERS = {"User-Agent": "seminar-guide/1.0"}
+_ARXIV_API_HEADERS = {"User-Agent": "seminar-assistant/1.0"}
 _BROWSER_HEADERS = {
     "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                    "AppleWebKit/537.36 (KHTML, like Gecko) "

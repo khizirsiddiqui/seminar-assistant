@@ -28,7 +28,7 @@ def test_build_calendar_groups_same_date_events():
     assert str(events[0]["SUMMARY"]) == "Seminar: Advanced Machine Learning"
     assert events[0]["DTSTART"].dt.hour == 14 and events[0]["DTSTART"].dt.minute == 15
     assert str(events[0]["DTSTART"].params["TZID"]) == "Europe/Berlin"
-    assert str(events[0]["UID"]) == "2026-10-27@seminar-guide"
+    assert str(events[0]["UID"]) == "2026-10-27@seminar-assistant"
 
     by_date = {str(e["DTSTART"].dt.date()): e for e in events}
     first = by_date["2026-10-27"]

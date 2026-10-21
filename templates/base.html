@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <title>Seminar Guide</title>
+  <title>Seminar Assistant</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap">
@@ -259,7 +259,7 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site">
     <div class="site-inner">
-      <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M8 3v4m8-4v4M3.5 10h17"/><path d="m9 15 2 2 4-4"/></svg>Seminar Guide</a>
+      <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M8 3v4m8-4v4M3.5 10h17"/><path d="m9 15 2 2 4-4"/></svg>Seminar Assistant</a>
       <nav class="main-nav" aria-label="Main">
         <a href="/" {% if request.url.path == "/" %}aria-current="page"{% endif %}>New schedule</a>
         <a href="/history" {% if request.url.path == "/history" %}aria-current="page"{% endif %}>History</a>
@@ -272,7 +272,7 @@
   <main id="main" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
-  <footer class="site">Seminar Guide · Universität Tübingen</footer>
+  <footer class="site">Seminar Assistant</footer>
   <script>
     (function () {
       var root = document.documentElement, btn = document.getElementById("theme-toggle");
