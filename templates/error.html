@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Something went wrong</h2>
-<p class="error">{{ message }}</p>
-<p><a href="/">&larr; Back to the schedule form</a></p>
+<div class="card" style="max-width:640px; margin:2rem auto; text-align:center;">
+  <div class="empty-state">
+    <div class="icon">⚠️</div>
+    <h1 style="font-size:1.25rem;">Something went wrong</h1>
+  </div>
+  <div class="alert-error" style="text-align:left;">
+    <p class="error" style="margin:0;">{{ message }}</p>
+  </div>
+  <a class="button" href="/">&larr; Back to the schedule form</a>
+</div>
 {% endblock %}

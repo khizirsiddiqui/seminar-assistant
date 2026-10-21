@@ -1,11 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Prepare: {{ row.paper }}</h2>
-<table>
-  <tr><th>Date</th><td>{{ row.date }}</td></tr>
-  <tr><th>Presenter</th><td>{{ row.student }}</td></tr>
-  <tr><th>Paper</th><td>{{ row.paper }}</td></tr>
-</table>
-<p>Preparation content will be added later.</p>
-<p><a href="/result/{{ sid }}">&larr; Back to session</a></p>
+<div class="card" style="max-width:640px; margin:2rem auto;">
+  <div class="page-head">
+    <p class="muted">Prepare for a presentation</p>
+    <h1 style="font-size:1.3rem;">{{ row.paper }}</h1>
+  </div>
+  <dl style="margin:0 0 1rem; display:grid; grid-template-columns:auto 1fr; gap:0.5rem 1.5rem;">
+    <dt class="muted">Date</dt><dd style="margin:0">{{ row.date }}</dd>
+    <dt class="muted">Presenter</dt><dd style="margin:0">{{ row.student }}</dd>
+    <dt class="muted">Paper</dt><dd style="margin:0">{{ row.paper }}</dd>
+  </dl>
+  <div class="empty-state" style="padding:1.5rem;">
+    <div class="icon">📚</div>
+    <p>Preparation content will be added later.</p>
+  </div>
+  <a class="back-link" href="/result/{{ sid }}">&larr; Back to session</a>
+</div>
 {% endblock %}

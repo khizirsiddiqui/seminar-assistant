@@ -1,43 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Seminar session {{ sid }}</h2>
-<table>
-  <tr><th>Created</th><td>{{ meta.created_at[:19].replace('T', ' ') }} UTC</td></tr>
-  <tr><th>Source</th><td>{{ meta.source_filename }}</td></tr>
-  <tr><th>Venue</th><td>{{ meta.venue }}</td></tr>
-  <tr><th>Time</th><td>{{ meta.start_time }}–{{ meta.end_time }}</td></tr>
-  <tr><th>Status</th><td>{{ status }}</td></tr>
-</table>
+<div class="page-head">
+  <h1>Seminar session</h1>
+  <p class="muted">Saved <code>{{ sid }}</code></p>
+</div>
+
+<div class="card">
+  <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:0.5rem 1.5rem;">
+    <dt class="muted">Created</dt><dd style="margin:0">{{ meta.created_at[:19].replace('T', ' ') }} UTC</dd>
+    <dt class="muted">Source</dt><dd style="margin:0">{{ meta.source_filename }}</dd>
+    <dt class="muted">Venue</dt><dd style="margin:0">{{ meta.venue }}</dd>
+    <dt class="muted">Time</dt><dd style="margin:0">{{ meta.start_time }}–{{ meta.end_time }}</dd>
+    <dt class="muted">Status</dt>
+    <dd style="margin:0">
+      {% if status == "generated" %}
+      <span class="badge success">generated</span>
+      {% else %}
+      <span class="badge muted">parsed</span>
+      {% endif %}
+    </dd>
+  </dl>
+</div>
 
 {% if status == "parsed" %}
-<h3>Parsed sessions (not yet selected for the calendar)</h3>
+<div class="card">
+  <p class="card-title">Parsed sessions (not yet selected for the calendar)</p>
+  <table>
+    <thead><tr><th>Date</th><th>Student</th><th>Paper</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr><td>{{ row.date }}</td><td>{{ row.student }}</td><td>{{ row.paper }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">This schedule was parsed but no calendar was generated yet.</p>
+  <p><a class="button" href="/confirm/{{ sid }}">Resume — confirm &amp; select sessions</a></p>
+</div>
 {% else %}
-<h3>Sessions</h3>
-{% endif %}
-<table>
-  <thead>
-    <tr><th>Date</th><th>Student</th><th>Paper</th>{% if status == "generated" %}<th></th>{% endif %}</tr>
-  </thead>
-  <tbody>
-    {% for row in rows %}
-    <tr>
-      <td>{{ row.date }}</td>
-      <td>{{ row.student }}</td>
-      <td>{{ row.paper }}</td>
-      {% if status == "generated" %}<td><a href="/prepare/{{ sid }}/{{ loop.index0 }}">Prepare</a></td>{% endif %}
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-{% if status == "parsed" %}
-<p>This schedule was parsed but no calendar was generated yet.</p>
-<p><a class="button" href="/confirm/{{ sid }}">Resume — confirm &amp; select sessions</a></p>
-{% else %}
-<p><a class="button" href="/download/{{ sid }}">Download .ics</a></p>
+<div class="card">
+  <p class="card-title">Sessions</p>
+  <table>
+    <thead>
+      <tr><th>Date</th><th>Student</th><th>Paper</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.date }}</td>
+        <td>{{ row.student }}</td>
+        <td>{{ row.paper }}</td>
+        <td class="actions"><a class="button secondary small" href="/prepare/{{ sid }}/{{ loop.index0 }}">Prepare</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p><a class="button success" href="/download/{{ sid }}">Download .ics</a></p>
+</div>
 {% endif %}
 
-<form action="/delete/{{ sid }}" method="post" style="margin-top:1rem"
+<form action="/delete/{{ sid }}" method="post"
       onsubmit="return confirm('Delete this seminar session?')">
   <button type="submit" class="danger">Delete this session</button>
 </form>

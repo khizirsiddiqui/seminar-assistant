@@ -1,30 +1,48 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>History</h2>
+<div class="page-head">
+  <h1>History</h1>
+  <p class="muted">Saved seminar schedules — resume unfinished ones or download their calendars.</p>
+</div>
+
 {% if sessions %}
-<table>
-  <thead>
-    <tr><th>Created</th><th>Source</th><th>Venue</th><th>Status</th><th></th><th></th></tr>
-  </thead>
-  <tbody>
-    {% for s in sessions %}
-    <tr>
-      <td>{{ s.created_at[:19].replace('T', ' ') }} UTC</td>
-      <td>{{ s.source_filename }}</td>
-      <td>{{ s.venue }}</td>
-      <td>{{ s.status }}</td>
-      <td><a href="/session/{{ s.id }}">View</a></td>
-      <td>
-        <form action="/delete/{{ s.id }}" method="post" style="display:inline"
-              onsubmit="return confirm('Delete this seminar session?')">
-          <button type="submit" class="danger">Delete</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>Created</th><th>Source</th><th>Venue</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for s in sessions %}
+      <tr>
+        <td>{{ s.created_at[:19].replace('T', ' ') }}</td>
+        <td>{{ s.source_filename }}</td>
+        <td>{{ s.venue }}</td>
+        <td>
+          {% if s.status == "generated" %}
+          <span class="badge success">generated</span>
+          {% else %}
+          <span class="badge muted">parsed</span>
+          {% endif %}
+        </td>
+        <td class="actions">
+          <a class="button secondary small" href="/session/{{ s.id }}">View</a>
+          <form action="/delete/{{ s.id }}" method="post" style="display:inline"
+                onsubmit="return confirm('Delete this seminar session?')">
+            <button type="submit" class="danger small">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
-<p>No saved seminars yet. <a href="/">Parse a schedule</a> to get started.</p>
+<div class="card">
+  <div class="empty-state">
+    <div class="icon">📅</div>
+    <p>No saved seminars yet.</p>
+    <p><a class="button" href="/">Parse a schedule</a></p>
+  </div>
+</div>
 {% endif %}
 {% endblock %}

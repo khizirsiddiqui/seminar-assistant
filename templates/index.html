@@ -1,32 +1,52 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Add a seminar schedule</h2>
+<div class="page-head">
+  <h1>Add a seminar schedule</h1>
+  <p class="muted">Upload or paste your professor's schedule — the AI extracts date, student and paper, then builds a calendar file.</p>
+</div>
+
 <form id="parse-form" action="/parse" method="post" enctype="multipart/form-data">
-  <label for="file">Schedule file (PDF / CSV / TXT)</label>
-  <input type="file" id="file" name="file" accept=".pdf,.csv,.txt,text/plain,text/csv,application/pdf">
+  <div class="card">
+    <p class="card-title"><span class="step-num">1</span> Add schedule</p>
 
-  <label for="pasted_text">…or paste the schedule text</label>
-  <textarea id="pasted_text" name="pasted_text" rows="8" placeholder="27.10.2026  Alice Schmidt — Attention Is All You Need&#10;03.11.2026  Bob Weber — BERT"></textarea>
+    <label for="file">Schedule file</label>
+    <input type="file" id="file" name="file" accept=".pdf,.csv,.txt,text/plain,text/csv,application/pdf">
+    <p class="field-hint">PDF, CSV or TXT</p>
 
-  <label for="venue">Venue</label>
-  <input type="text" id="venue" name="venue" placeholder="Room 1.06, Sand 14, Tübingen" required>
+    <label for="pasted_text">…or paste the schedule text</label>
+    <textarea id="pasted_text" name="pasted_text" rows="8" placeholder="27.10.2026  Alice Schmidt — Attention Is All You Need&#10;03.11.2026  Bob Weber — BERT"></textarea>
+    <p class="field-hint">If both are given, the file is used.</p>
+  </div>
 
-  <label for="assume_year">Year (used when dates have none)</label>
-  <input type="number" id="assume_year" name="assume_year" value="{{ current_year }}">
+  <div class="card">
+    <p class="card-title"><span class="step-num">2</span> When &amp; where</p>
 
-  <label for="start_time">Start time</label>
-  <input type="time" id="start_time" name="start_time" value="14:15" required>
+    <label for="venue">Venue</label>
+    <input type="text" id="venue" name="venue" placeholder="Room 1.06, Sand 14, Tübingen" required>
 
-  <label for="end_time">End time</label>
-  <input type="time" id="end_time" name="end_time" value="15:45" required>
+    <div class="form-row">
+      <div>
+        <label for="assume_year">Year <span class="muted">(if dates have none)</span></label>
+        <input type="number" id="assume_year" name="assume_year" value="{{ current_year }}">
+      </div>
+      <div>
+        <label for="start_time">Start time</label>
+        <input type="time" id="start_time" name="start_time" value="14:15" required>
+      </div>
+      <div>
+        <label for="end_time">End time</label>
+        <input type="time" id="end_time" name="end_time" value="15:45" required>
+      </div>
+    </div>
+  </div>
 
   <button type="submit" id="submit-btn">Parse schedule</button>
-</form>
 
-<div class="progress-container" id="progress">
-  <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
-  <p class="progress-label" id="progress-label"></p>
-</div>
+  <div class="progress-container" id="progress">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    <p class="progress-label" id="progress-label"></p>
+  </div>
+</form>
 
 <script>
 (function () {
@@ -83,6 +103,7 @@
       label.textContent = "";
       showParsing();
     }
+
     xhr.addEventListener("load", function () {
       // NOTE: XHR auto-follows the 303 redirect, so the final status is 200
       // with the confirm page HTML — success/failure is detected by content.
@@ -99,14 +120,12 @@
       }
     });
 
-
     xhr.addEventListener("error", function () {
       clearInterval(label._t);
       hide();
       btn.disabled = false;
       alert("Request failed. Is the server running?");
     });
-
 
     xhr.send(new FormData(form));
   });
