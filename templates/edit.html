@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <p class="eyebrow">Session <code>{{ sid }}</code></p>
+  <h1>Edit seminar session</h1>
+  <p class="muted">Changes apply to the course title, venue and time of the whole series.</p>
+</div>
+
+<form action="{{ request.url.path }}" method="post" class="narrow-card">
+  <div class="card">
+    <label for="course_title">Seminar course <span class="muted">(optional)</span></label>
+    <input type="text" id="course_title" name="course_title" value="{{ meta.course_title }}" placeholder="e.g. Seminar: Advanced Machine Learning">
+    <p class="field-hint">Used as the calendar event title.</p>
+
+    <div class="form-row">
+      <div>
+        <label for="venue">Venue</label>
+        <input type="text" id="venue" name="venue" value="{{ meta.venue }}" required>
+      </div>
+      <div>
+        <label for="start_time">Start</label>
+        <input type="time" id="start_time" name="start_time" value="{{ meta.start_time }}" required>
+      </div>
+      <div>
+        <label for="end_time">End</label>
+        <input type="time" id="end_time" name="end_time" value="{{ meta.end_time }}" required>
+      </div>
+    </div>
+  </div>
+  <div class="row-actions">
+    <button type="submit">Save changes</button>
+    <a class="button secondary" href="/session/{{ sid }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

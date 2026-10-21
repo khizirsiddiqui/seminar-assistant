@@ -1,25 +1,76 @@
 {% extends "base.html" %}
+{% block head %}
+<style>
+  .intake { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--s6); align-items: start; }
+  .next-steps { position: sticky; top: 5rem; padding-top: var(--s2); }
+  .next-steps ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s4); counter-reset: step; }
+  .next-steps li { display: flex; flex-direction: column; gap: 2px; font-size: .92rem; padding-left: 2.1rem; position: relative; counter-increment: step; }
+  .next-steps li::before { content: counter(step); position: absolute; left: 0; top: .1rem; width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 1.5px solid var(--accent); color: var(--accent); font: 600 .75rem/1.25rem var(--font-body); text-align: center; }
+  .next-steps li:not(:last-child)::after { content: ""; position: absolute; left: .7rem; top: 1.65rem; bottom: calc(-1 * var(--s4) + .15rem); width: 1px; background: var(--rule); }
+  .next-steps li strong { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; }
+  .next-steps li span { color: var(--ink-2); }
+  .recent { margin-bottom: var(--s6); }
+  .recent-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--s3); }
+  .recent-list a { display: flex; flex-direction: column; gap: var(--s2); height: 100%; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: var(--s3) var(--s4); text-decoration: none; color: var(--ink); transition: border-color .15s; }
+  .recent-list a:hover { border-color: var(--accent); color: var(--ink); }
+  .recent-title { font-family: var(--font-display); font-size: 1.1rem; line-height: 1.3; overflow-wrap: anywhere; }
+  .recent-meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); align-items: center; font-size: .8rem; color: var(--ink-2); margin-top: auto; }
+  .dz-label { display: inline; margin: 0; }
+  @media (max-width: 820px) {
+    .intake { grid-template-columns: minmax(0, 1fr); }
+    .next-steps { position: static; padding: var(--s4) 0 0; border-top: 1px solid var(--rule); order: 2; }
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Add a seminar schedule</h1>
-  <p class="muted">Upload or paste your professor's schedule — the AI extracts date, student and paper, then builds a calendar file.</p>
+  <p class="eyebrow">New schedule</p>
+  <h1>Turn a seminar schedule into a calendar</h1>
+  <p class="muted">Upload or paste the schedule. The AI reads out date, student and paper, and you check the result before anything is saved to a calendar.</p>
 </div>
 
+{% if recent %}
+<section class="recent" aria-label="Recent seminars">
+  <p class="card-title">Pick up where you left off</p>
+  <ul class="recent-list">
+    {% for s in recent %}
+    <li><a href="/session/{{ s.id }}">
+      <span class="recent-title">{{ s.course_title if s.course_title else s.source_filename }}</span>
+      <span class="recent-meta">
+        {% if s.status == "generated" %}<span class="badge success">generated</span>{% else %}<span class="badge muted">parsed</span>{% endif %}
+        <span class="mono">{{ s.talk_count }} talk{{ '' if s.talk_count == 1 else 's' }}</span>
+        {% if s.status == "generated" %}<span class="mono">{{ s.prepared_count }} guide{{ '' if s.prepared_count == 1 else 's' }}</span>{% endif %}
+      </span>
+    </a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<div class="intake">
 <form id="parse-form" action="/parse" method="post" enctype="multipart/form-data">
   <div class="card">
-    <p class="card-title"><span class="step-num">1</span> Add schedule</p>
+    <p class="card-title"><span class="step-num">1</span> Schedule</p>
 
-    <label for="file">Schedule file</label>
-    <input type="file" id="file" name="file" accept=".pdf,.csv,.txt,text/plain,text/csv,application/pdf">
-    <p class="field-hint">PDF, CSV or TXT</p>
+    <div class="dropzone" id="dropzone">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 17v-6m-3 3 3-3 3 3"/></svg>
+      <p class="dz-title"><label for="file" class="dz-label">Choose a schedule file</label> or drop it here</p>
+      <p class="field-hint">PDF, CSV or TXT</p>
+      <p class="dz-name" id="file-name" aria-live="polite"></p>
+      <input type="file" id="file" name="file" accept=".pdf,.csv,.txt,text/plain,text/csv,application/pdf">
+    </div>
 
-    <label for="pasted_text">…or paste the schedule text</label>
-    <textarea id="pasted_text" name="pasted_text" rows="8" placeholder="27.10.2026  Alice Schmidt — Attention Is All You Need&#10;03.11.2026  Bob Weber — BERT"></textarea>
+    <label for="pasted_text">Or paste the schedule text</label>
+    <textarea id="pasted_text" name="pasted_text" class="mono" rows="7" placeholder="27.10.2026  Alice Schmidt — Attention Is All You Need&#10;03.11.2026  Bob Weber — BERT"></textarea>
     <p class="field-hint">If both are given, the file is used.</p>
   </div>
 
   <div class="card">
     <p class="card-title"><span class="step-num">2</span> When &amp; where</p>
+
+    <label for="course_title">Seminar course <span class="muted">(optional)</span></label>
+    <input type="text" id="course_title" name="course_title" placeholder="e.g. Seminar: Advanced Machine Learning">
+    <p class="field-hint">Leave blank to detect it from the schedule.</p>
 
     <label for="venue">Venue</label>
     <input type="text" id="venue" name="venue" placeholder="Room 1.06, Sand 14, Tübingen" required>
@@ -40,13 +91,27 @@
     </div>
   </div>
 
-  <button type="submit" id="submit-btn">Parse schedule</button>
+  <div class="alert-error" id="form-error" role="alert" hidden></div>
+
+  <button type="submit" id="submit-btn">Parse schedule
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+  </button>
 
   <div class="progress-container" id="progress">
     <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
-    <p class="progress-label" id="progress-label"></p>
+    <p class="progress-label" id="progress-label" aria-live="polite"></p>
   </div>
 </form>
+
+<aside class="next-steps" aria-label="What happens next">
+  <p class="eyebrow">What happens next</p>
+  <ol>
+    <li><strong>Parse</strong><span>The AI extracts one row per talk.</span></li>
+    <li><strong>Confirm</strong><span>Deselect anything that does not belong.</span></li>
+    <li><strong>Calendar &amp; prep</strong><span>Download the .ics, then generate a reading guide for each paper.</span></li>
+  </ol>
+</aside>
+</div>
 
 <script>
 (function () {
@@ -55,9 +120,27 @@
   var fill = document.getElementById("progress-fill");
   var label = document.getElementById("progress-label");
   var btn = document.getElementById("submit-btn");
+  var errBox = document.getElementById("form-error");
+  var dz = document.getElementById("dropzone");
+  var fileInput = document.getElementById("file");
+  var fileName = document.getElementById("file-name");
+  fileInput.addEventListener("change", function () {
+    fileName.textContent = fileInput.files.length ? fileInput.files[0].name : "";
+  });
+  ["dragenter", "dragover"].forEach(function (n) { dz.addEventListener(n, function () { dz.classList.add("dragover"); }); });
+  ["dragleave", "drop"].forEach(function (n) { dz.addEventListener(n, function () { dz.classList.remove("dragover"); }); });
   var spinnerHtml = '<span class="spinner"></span> ';
 
-  function show() { bar.classList.add("visible"); }
+  function showError(text) {
+    errBox.textContent = text;
+    errBox.hidden = false;
+    errBox.scrollIntoView({behavior: "smooth", block: "center"});
+  }
+
+  function show() {
+    bar.classList.add("visible");
+    errBox.hidden = true;
+  }
   function hide() { bar.classList.remove("visible"); }
 
   form.addEventListener("submit", function (e) {
@@ -113,7 +196,7 @@
       if (msg) {
         hide();
         btn.disabled = false;
-        alert(msg.textContent.trim());
+        showError(msg.textContent.trim());
       } else {
         // success: the browser already followed the redirect; go to final URL
         window.location.href = xhr.responseURL || "/history";
@@ -124,7 +207,7 @@
       clearInterval(label._t);
       hide();
       btn.disabled = false;
-      alert("Request failed. Is the server running?");
+      showError("Request failed. Is the server running?");
     });
 
     xhr.send(new FormData(form));

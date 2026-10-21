@@ -1,14 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
+<ol class="stage-line" aria-label="Progress">
+  <li class="done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Parse</li>
+  <li class="current" aria-current="step">Confirm</li>
+  <li>Calendar</li>
+</ol>
+
 <div class="page-head">
   <h1>Confirm parsed sessions</h1>
-  <p class="muted">The AI parsed <strong>{{ rows|length }}</strong> session{{ '' if rows|length == 1 else 's' }}. Check they look right, deselect anything you don't want, then generate your calendar.</p>
+  <p class="muted">The AI found <strong>{{ rows|length }}</strong> session{{ '' if rows|length == 1 else 's' }}. Deselect anything that does not belong, then generate the calendar.</p>
 </div>
 
 {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
 
 <form action="/generate/{{ sid }}" method="post">
   <div class="card">
+    <p class="card-title">Event details</p>
+    <label for="course_title">Seminar course <span class="muted">(optional)</span></label>
+    <input type="text" id="course_title" name="course_title" value="{{ meta.course_title }}" placeholder="e.g. Seminar: Advanced Machine Learning">
+    <p class="field-hint">Used as the calendar event title.</p>
+
     <div class="form-row">
       <div>
         <label for="venue">Venue</label>
@@ -27,22 +38,28 @@
 
   <div class="card">
     <p class="card-title">Sessions</p>
-    <table>
-      <thead>
-        <tr><th style="width:2rem"><input type="checkbox" id="toggle-all" checked title="Select all / deselect all"></th><th>Date</th><th>Student</th><th>Paper</th></tr>
-      </thead>
-      <tbody>
+    <div class="pick-list">
+      <div class="pick-head">
+        <input type="checkbox" id="toggle-all" checked title="Select all / deselect all" aria-label="Select all sessions">
+        <span class="ph-date">Date</span><span class="ph-paper">Paper &amp; student</span>
+      </div>
+      <ul class="pick-rows">
         {% for row in rows %}
-        <tr>
-          <td><input type="checkbox" name="row_index" value="{{ loop.index0 }}" checked class="row-select"></td>
-          <td>{{ row.date }}</td>
-          <td>{{ row.student }}</td>
-          <td>{{ row.paper }}</td>
-        </tr>
+        <li class="pick">
+          <input type="checkbox" id="row-{{ loop.index0 }}" name="row_index" value="{{ loop.index0 }}" checked class="row-select" aria-label="Include session {{ loop.index }}">
+          <label for="row-{{ loop.index0 }}" class="pick-date">{{ row.date }}</label>
+          <div class="pick-body">
+            <label for="row-{{ loop.index0 }}" class="pick-paper">{{ row.paper }}</label>
+            <span class="pick-who">{{ row.student }}{% if row.paper_url %} · <a href="{{ row.paper_url }}" target="_blank" rel="noopener">link</a>{% endif %}</span>
+          </div>
+        </li>
         {% endfor %}
-      </tbody>
-    </table>
-    <button type="submit">Generate calendar (.ics)</button>
+      </ul>
+    </div>
+    <div class="row-actions">
+      <button type="submit" id="generate-btn">Generate calendar (.ics)</button>
+      <span class="muted mono" id="selected-count" aria-live="polite"></span>
+    </div>
   </div>
 </form>
 
@@ -50,9 +67,21 @@
 (function () {
   var toggle = document.getElementById("toggle-all");
   var boxes = document.querySelectorAll(".row-select");
+  var count = document.getElementById("selected-count");
+  var btn = document.getElementById("generate-btn");
+  function update() {
+    var n = 0;
+    boxes.forEach(function (b) { if (b.checked) n++; });
+    count.textContent = n + " of " + boxes.length + " selected";
+    toggle.checked = n === boxes.length;
+    toggle.indeterminate = n > 0 && n < boxes.length;
+  }
   toggle.addEventListener("change", function () {
     boxes.forEach(function (b) { b.checked = toggle.checked; });
+    update();
   });
+  boxes.forEach(function (b) { b.addEventListener("change", update); });
+  update();
 })();
 </script>
 {% endblock %}

@@ -6,7 +6,9 @@ from app import llm as llm_mod
 
 def make_client(tmp_path, monkeypatch, rows):
     monkeypatch.setattr(storage, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(llm_mod, "parse_schedule", lambda text, assume_year=None: rows)
+    monkeypatch.setattr(
+        llm_mod, "parse_schedule",
+        lambda text, assume_year=None: {"course_title": "", "sessions": rows})
     from app.main import app
     return TestClient(app)
 
@@ -72,3 +74,25 @@ def test_delete_uses_post_only(tmp_path, monkeypatch):
     sid = _parse(client)
     assert client.get(f"/delete/{sid}").status_code == 405
     assert (tmp_path / sid).exists()
+
+
+def test_history_is_newest_first_with_counts(tmp_path, monkeypatch):
+    rows = [{"date": "2026-10-27", "student": "Alice", "paper": "P1"},
+            {"date": "2026-11-03", "student": "Bob", "paper": "P2"}]
+    client = make_client(tmp_path, monkeypatch, rows)
+    old = _parse(client)
+    new = _parse(client)
+    storage.update_session_meta(old, created_at="2026-01-01T00:00:00+00:00")
+    storage.update_session_meta(new, created_at="2026-06-01T00:00:00+00:00")
+
+    from app.main import _session_summaries
+    summaries = _session_summaries()
+    assert [s["id"] for s in summaries] == [new, old]
+    assert summaries[0]["talk_count"] == 2
+    assert summaries[0]["first_date"] == "2026-10-27"
+    assert summaries[0]["last_date"] == "2026-11-03"
+
+    page = client.get("/history").text
+    assert page.index(new) < page.index(old)
+    assert "2 talks" in page
+    assert new in client.get("/").text

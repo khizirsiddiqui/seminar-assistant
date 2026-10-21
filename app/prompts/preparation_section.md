@@ -1,0 +1,1 @@
+Task: write one section of the preparation guide. Write the content for the single requested section. Define technical terms when first used, and describe methods by what they do and why, not by their formulas. Return ONLY a JSON object: {"content": "<section content>"}.

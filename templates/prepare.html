@@ -1,19 +1,319 @@
 {% extends "base.html" %}
+{% block head %}
+<style>
+  .prep-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--s6); align-items: start; }
+  .prep-main { min-width: 0; max-width: 72ch; }
+  .prep-side { position: sticky; top: 5rem; display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+  .prep-side .panel { border-top: 1px solid var(--rule); padding-top: var(--s3); }
+  .prep-side .toc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s1); font-size: .9rem; }
+  .prep-side .toc a { color: var(--ink-2); text-decoration: none; }
+  .prep-side .toc a:hover { color: var(--accent); }
+  .prep-head { margin-bottom: var(--s5); display: flex; flex-direction: column; gap: var(--s2); }
+  .prep-head .paper-title { font-size: var(--text-2xl); }
+  .lead { font-family: var(--font-display); font-size: 1.3rem; line-height: 1.5; margin: 0 0 var(--s5); color: var(--ink); }
+  .prep-block { margin-top: var(--s5); }
+  .briefing { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: var(--s5); }
+  .briefing > :last-child { margin-bottom: 0; }
+  .prep-section { margin-top: var(--s4); border-top: 1px solid var(--rule); padding-top: var(--s4); scroll-margin-top: 5rem; }
+  .prep-section summary { display: flex; align-items: center; gap: var(--s3); cursor: pointer; list-style: none; margin-bottom: var(--s3); }
+  .prep-section summary::-webkit-details-marker { display: none; }
+  .prep-section summary::before { content: ""; width: .5rem; height: .5rem; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); transform: rotate(-45deg); transition: transform .15s; flex-shrink: 0; }
+  .prep-section[open] > summary::before { transform: rotate(45deg); }
+  .prep-section:not([open]) > summary { margin-bottom: 0; }
+  .prep-section h3 { margin: 0; }
+  .prep-section-content a { overflow-wrap: anywhere; }
+  .prep-section-content h4 { font-family: var(--font-body); font-size: 1rem; font-weight: 600; margin: var(--s4) 0 var(--s1); }
+  .prep-section-content p { margin: 0 0 var(--s3); }
+  .prep-side .toc a { display: block; padding-left: var(--s3); border-left: 2px solid var(--rule); }
+  .prep-side .toc a[aria-current="true"] { color: var(--ink); border-left-color: var(--accent); font-weight: 500; }
+  .prep-section-content { line-height: 1.7; }
+  .prep-section-content > :first-child { margin-top: 0; }
+  .prep-section-content > :last-child { margin-bottom: 0; }
+  .prep-section-content ul, .prep-section-content ol { margin: var(--s2) 0; padding-left: 1.25rem; }
+  .prep-section-content li { margin: var(--s1) 0; }
+  .prep-section-content pre { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: var(--s3); overflow-x: auto; }
+  .prep-section-content code { font-family: var(--font-mono, monospace); }
+  .prep-section-content blockquote { border-left: 3px solid var(--rule); margin: var(--s3) 0; padding-left: var(--s3); color: var(--ink-2); }
+  .status-line { margin-top: 0; color: var(--ink); font-weight: 500; }
+  .status-panel { border: 1px solid var(--rule); border-radius: var(--r); background: var(--surface); padding: var(--s4); margin-bottom: var(--s5); }
+  .status-panel .progress-container { margin-top: 0; }
+  .regen-form { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; margin-top: var(--s6); padding-top: var(--s4); border-top: 1px solid var(--rule); }
+  .regen-form input { flex: 1; min-width: 220px; width: auto; }
+  .section-checklist { margin-top: var(--s4); }
+  .section-checklist .toc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); font-size: .9rem; }
+  .section-checklist li { display: flex; align-items: center; gap: var(--s2); color: var(--ink-2); }
+  .section-checklist li::before { content: ""; width: .85rem; height: .85rem; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--rule); }
+  .section-checklist li.is-done { color: var(--ink); }
+  .section-checklist li.is-done::before { background: var(--ok); border-color: var(--ok); box-shadow: inset 0 0 0 2.5px var(--surface); }
+  .prep-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; margin-top: var(--s6); padding-top: var(--s4); border-top: 1px solid var(--rule); }
+  .prep-footer .back-link { margin-top: 0; }
+  .gen-form { max-width: 56ch; margin-top: var(--s5); }
+  @media (max-width: 860px) {
+    .prep-layout { grid-template-columns: minmax(0, 1fr); }
+    .prep-side { position: static; order: -1; }
+    .prep-side .toc-panel { display: none; }
+  }
+</style>
+{% endblock %}
 {% block content %}
-<div class="card" style="max-width:640px; margin:2rem auto;">
-  <div class="page-head">
-    <p class="muted">Prepare for a presentation</p>
-    <h1 style="font-size:1.3rem;">{{ row.paper }}</h1>
-  </div>
-  <dl style="margin:0 0 1rem; display:grid; grid-template-columns:auto 1fr; gap:0.5rem 1.5rem;">
-    <dt class="muted">Date</dt><dd style="margin:0">{{ row.date }}</dd>
-    <dt class="muted">Presenter</dt><dd style="margin:0">{{ row.student }}</dd>
-    <dt class="muted">Paper</dt><dd style="margin:0">{{ row.paper }}</dd>
-  </dl>
-  <div class="empty-state" style="padding:1.5rem;">
-    <div class="icon">📚</div>
-    <p>Preparation content will be added later.</p>
-  </div>
-  <a class="back-link" href="/result/{{ sid }}">&larr; Back to session</a>
+{% set guide_sections = (sections if sections else (preparation.sections if preparation else [])) %}
+<div class="prep-head">
+  <p class="eyebrow">Prepare for a presentation</p>
+  <h1 class="paper-title">{{ row.paper }}</h1>
+  <p class="muted"><span class="mono">{{ row.date }}</span> · {{ row.student }}</p>
 </div>
+
+<div class="prep-layout">
+<div class="prep-main">
+  {% if error %}
+  <div class="alert-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  {% if state and state.status in ("running", "paused") %}
+  <div class="status-panel">
+    <div class="progress-container visible" id="prep-progress" role="status">
+      <p class="progress-label status-line" aria-live="polite">
+        {% if state.status != "paused" %}<span class="spinner" aria-hidden="true"></span>{% endif %}
+        {% if state.status == "paused" %}Paused{% else %}Generating preparation…{% endif %}
+      </p>
+
+      {% if state.total_requests %}
+      <div class="progress-bar-track" style="margin-top:var(--s3)">
+        <div class="progress-bar-fill"
+             style="width: {{ (state.completed_requests / state.total_requests * 100) | round(0) | int }}%"></div>
+      </div>
+      <p class="progress-label">
+        {{ state.completed_requests }} of {{ state.total_requests }} AI requests complete
+      </p>
+      {% endif %}
+    </div>
+    {% if section_titles %}
+    {% set done_titles = guide_sections | map(attribute="title") | list %}
+    <div class="section-checklist">
+      <p class="card-title">Sections</p>
+      <ul class="toc">
+        {% for title in section_titles %}
+        <li class="{{ 'is-done' if title in done_titles else '' }}">{{ title }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if state and state.tokens %}
+    <p class="progress-label" style="margin-top: var(--s3)">Tokens consumed: {{ state.tokens.total_tokens | default(0) }}</p>
+    {% endif %}
+    {% if state and state.duration_seconds is defined and state.duration_seconds is not none %}
+    <p class="progress-label" style="margin-top: var(--s2)">Duration: {{ "%.1f"|format(state.duration_seconds | default(0)) }}s</p>
+    {% endif %}
+    <div class="row-actions" style="margin-top:var(--s3)">
+      {% if state.status == "running" %}
+      <form action="/prepare/{{ sid }}/{{ row_index }}/pause" method="post" class="inline-form">
+        <button type="submit" class="secondary small">Pause AI requests</button>
+      </form>
+      {% else %}
+      <form action="/prepare/{{ sid }}/{{ row_index }}/resume" method="post" class="inline-form">
+        <button type="submit" class="small">Resume AI requests</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if generation_error %}
+  <div class="alert-error" role="alert">{{ generation_error }}</div>
+  {% endif %}
+
+  {% if preparation %}
+    {% if preparation.short_briefing %}
+    <section aria-labelledby="prep-briefing-title">
+      <p class="card-title" id="prep-briefing-title">Executive briefing</p>
+      <div class="lead briefing">{{ preparation.short_briefing | markdown }}</div>
+    </section>
+    {% endif %}
+
+    {% if preparation.prerequisites %}
+    <section class="prep-block" aria-labelledby="prep-prerequisites-title">
+      <p class="card-title" id="prep-prerequisites-title">Prerequisites &amp; background</p>
+      <div class="prep-section-content">{{ preparation.prerequisites | markdown }}</div>
+    </section>
+    {% endif %}
+
+    {% if guide_sections %}
+    <section class="prep-block" aria-labelledby="prep-guide-title">
+      <p class="card-title" id="prep-guide-title">Preparation guide</p>
+      {% for section in guide_sections %}
+      <details class="prep-section" id="section-{{ loop.index }}" open>
+        <summary><h3>{{ section.title }}</h3></summary>
+        <div class="prep-section-content">{{ section.content | markdown }}</div>
+      </details>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    {% if not (state and state.status in ("running", "paused")) %}
+    <form id="prep-regenerate-form"
+          action="/prepare/{{ sid }}/{{ row_index }}/regenerate"
+          method="post"
+          class="regen-form">
+      <label class="visually-hidden" for="regenerate-arxiv-query">arXiv or PDF URL / ID</label>
+      <input type="text"
+             id="regenerate-arxiv-query"
+             name="arxiv_query"
+             value="{{ row.paper_url or '' }}"
+             placeholder="Leave blank to reuse the stored title, or paste an arXiv/PDF URL or ID">
+      <button type="submit" id="prep-regenerate-btn" class="secondary">Regenerate preparation</button>
+    </form>
+    {% endif %}
+  {% else %}
+    <div class="empty-state">
+      <h2>No preparation guide yet.</h2>
+      <p class="muted">Generate an AI preparation guide to get a briefing, background, and section-by-section notes for this talk.</p>
+    </div>
+
+    {% if not (state and state.status in ("running", "paused")) %}
+    <form id="prep-form"
+          class="gen-form"
+          action="/prepare/{{ sid }}/{{ row_index }}/generate"
+          method="post">
+      <label for="arxiv-query">arXiv or PDF URL / ID <span class="muted">(optional)</span></label>
+      <input type="text"
+             id="arxiv-query"
+             name="arxiv_query"
+             value="{{ row.paper_url or '' }}"
+             placeholder="Leave blank to search by paper title, or paste an arXiv/PDF URL or ID">
+      <p class="field-hint">The app searches arXiv, downloads the PDF, and asks the AI to write each section. The page updates automatically as sections are generated.</p>
+
+      <div class="row-actions">
+        <button type="submit" id="prep-submit">Generate preparation</button>
+      </div>
+    </form>
+    {% endif %}
+  {% endif %}
+
+  <div class="prep-footer">
+    <a class="back-link" href="/session/{{ sid }}">&larr; Back to session</a>
+    {% if preparation and not (state and state.status in ("running", "paused")) %}
+    <form id="prep-clear-form"
+          action="/prepare/{{ sid }}/{{ row_index }}/clear"
+          method="post"
+          class="inline-form"
+          onsubmit="return confirm('Clear this preparation guide? This cannot be undone.');">
+      <button type="submit" id="prep-clear-btn" class="danger small">Clear preparation</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<aside class="prep-side" aria-label="Paper details">
+  {% if preparation and preparation.source %}
+  <div class="panel">
+    <p class="card-title" id="prep-source-title">Paper source</p>
+    <dl class="detail-grid">
+      <dt class="muted">arXiv</dt>
+      <dd class="mono">
+        {% if preparation.source.arxiv_id %}
+        <a href="{{ preparation.source.url }}" rel="noopener noreferrer" target="_blank">{{ preparation.source.arxiv_id }}</a>
+        {% else %}
+        <a href="{{ preparation.source.pdf_url or preparation.source.url }}" rel="noopener noreferrer" target="_blank">PDF</a>
+        {% endif %}
+      </dd>
+      <dt class="muted">Published</dt><dd>{{ preparation.source.published or "—" }}</dd>
+      <dt class="muted">Authors</dt><dd>{{ preparation.source.authors | join(", ") if preparation.source.authors else "—" }}</dd>
+      <dt class="muted">Categories</dt><dd class="mono">{{ preparation.source.categories | join(", ") if preparation.source.categories else "—" }}</dd>
+    </dl>
+    {% if preparation.source.paper_text_truncated %}
+    <p class="field-hint">The paper text was truncated before analysis.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% set tokens_used = (preparation.tokens if preparation and preparation.tokens else (state.tokens if state else None)) %}
+  {% set duration_seconds = (preparation.duration_seconds if preparation and preparation.duration_seconds is defined and preparation.duration_seconds is not none else (state.duration_seconds if state and state.duration_seconds is defined and state.duration_seconds is not none else None)) %}
+  {% if (tokens_used or duration_seconds is not none) and not (state and state.status in ("running", "paused")) %}
+  <div class="panel">
+    <p class="card-title">LLM usage</p>
+    {% if tokens_used %}
+    <p class="field-hint">Tokens consumed: {{ tokens_used.total_tokens | default(0) }}</p>
+    {% endif %}
+    {% if duration_seconds is not none %}
+    <p class="field-hint" style="margin-top: var(--s1)">Duration: {{ "%.1f"|format(duration_seconds) }}s</p>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if guide_sections or section_titles %}
+  <div class="panel toc-panel">
+    <p class="card-title">On this page</p>
+    <ul class="toc">
+      {% for section in guide_sections %}
+      <li><a href="#section-{{ loop.index }}">{{ section.title }}</a></li>
+      {% endfor %}
+      {% for title in section_titles %}
+      {% if title not in guide_sections | map(attribute="title") | list %}
+      <li>{{ title }}</li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</aside>
+</div>
+
+{% if state and state.status in ("running", "paused") %}
+<script>
+(function () {
+  var statusUrl = "/prepare/{{ sid }}/{{ row_index }}/status";
+  var version = null, busy = false;
+
+  function swap() {
+    return fetch(location.href, {headers: {"Accept": "text/html"}})
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var next = new DOMParser().parseFromString(html, "text/html").querySelector(".prep-layout");
+        var cur = document.querySelector(".prep-layout");
+        if (next && cur) cur.innerHTML = next.innerHTML;
+        if (window.initGuideNav) window.initGuideNav();
+      });
+  }
+
+  function tick() {
+    if (busy) return;
+    busy = true;
+    fetch(statusUrl, {cache: "no-store"})
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        var changed = version !== null && s.version !== version;
+        version = s.version;
+        var work = changed ? swap() : Promise.resolve();
+        return work.then(function () {
+          if (!s.active) clearInterval(timer);
+        });
+      })
+      .catch(function () {})
+      .then(function () { busy = false; });
+  }
+  var timer = setInterval(tick, 1000);
+  tick();
+})();
+</script>
+{% endif %}
+<script>
+  window.initGuideNav = function () {
+    if (window._guideObs) window._guideObs.disconnect();
+    var links = document.querySelectorAll(".toc a[href^='#section-']");
+    if (!links.length || !("IntersectionObserver" in window)) return;
+    var byId = {};
+    links.forEach(function (a) { byId[a.getAttribute("href").slice(1)] = a; });
+    window._guideObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          links.forEach(function (a) { a.removeAttribute("aria-current"); });
+          byId[e.target.id].setAttribute("aria-current", "true");
+        }
+      });
+    }, {rootMargin: "-10% 0px -75% 0px"});
+    Object.keys(byId).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) window._guideObs.observe(el);
+    });
+  };
+  window.initGuideNav();
+</script>
 {% endblock %}

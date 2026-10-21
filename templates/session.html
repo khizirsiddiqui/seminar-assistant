@@ -1,65 +1,115 @@
 {% extends "base.html" %}
+{% block head %}
+<style>
+  .timeline { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); margin: 0 0 var(--s4); }
+  .day { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: var(--s4); padding: var(--s4) var(--s5); }
+  .day + .day { border-top: 1px solid var(--rule); }
+  .day-date { padding-top: .25rem; display: flex; flex-direction: column; gap: var(--s1); align-items: flex-start; }
+  .day-date .mono { color: var(--accent); font-weight: 500; font-size: .85rem; }
+  .day.is-past .day-date .mono { color: var(--ink-2); }
+  .day.is-past .talk h3 { color: var(--ink-2); }
+  .day.is-next { background: var(--accent-soft); }
+  .talks { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+  .talk { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s3); align-items: start; }
+  .talk h3 { font-size: 1.2rem; font-weight: 500; overflow-wrap: anywhere; }
+  .talk .who { color: var(--ink-2); font-size: .9rem; margin: var(--s1) 0 0; }
+  .lede { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); color: var(--ink-2); font-size: .9rem; align-items: center; }
+  .actions-bar { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; margin-top: var(--s5); }
+  .actions-bar .spacer { margin-left: auto; }
+  .button.prepare-fetching { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .button.prepare-fetching:hover { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); filter: brightness(.95); }
+  .section-label { margin-top: var(--s5); }
+  @media (max-width: 600px) {
+    .day { grid-template-columns: minmax(0, 1fr); gap: var(--s2); padding: var(--s4); }
+    .day-date { padding-top: 0; flex-direction: row; align-items: center; gap: var(--s3); }
+    .talk { grid-template-columns: minmax(0, 1fr); }
+    .actions-bar .spacer { margin-left: 0; }
+  }
+</style>
+{% endblock %}
 {% block content %}
+{% set check %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>{% endset %}
+<ol class="stage-line" aria-label="Progress">
+  <li class="done">{{ check }}Parse</li>
+  {% if status == "generated" %}
+  <li class="done">{{ check }}Confirm</li>
+  <li class="current" aria-current="step">Calendar &amp; prep</li>
+  {% else %}
+  <li class="current" aria-current="step">Confirm</li>
+  <li>Calendar &amp; prep</li>
+  {% endif %}
+</ol>
 <div class="page-head">
-  <h1>Seminar session</h1>
-  <p class="muted">Saved <code>{{ sid }}</code></p>
+  <p class="eyebrow">Session <code>{{ sid }}</code></p>
+  <h1>{{ meta.course_title if meta.course_title else (meta.source_filename or "Seminar session") }}</h1>
+  <div class="lede">
+    {% if status == "generated" %}<span class="badge success">generated</span>{% else %}<span class="badge muted">parsed</span>{% endif %}
+    <span>{{ meta.venue }}</span>
+    {% if meta.source_filename %}<span class="mono">{{ meta.source_filename }}</span>{% endif %}
+  </div>
 </div>
 
-<div class="card">
-  <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:0.5rem 1.5rem;">
-    <dt class="muted">Created</dt><dd style="margin:0">{{ meta.created_at[:19].replace('T', ' ') }} UTC</dd>
-    <dt class="muted">Source</dt><dd style="margin:0">{{ meta.source_filename }}</dd>
-    <dt class="muted">Venue</dt><dd style="margin:0">{{ meta.venue }}</dd>
-    <dt class="muted">Time</dt><dd style="margin:0">{{ meta.start_time }}–{{ meta.end_time }}</dd>
-    <dt class="muted">Status</dt>
-    <dd style="margin:0">
-      {% if status == "generated" %}
-      <span class="badge success">generated</span>
+<dl class="facts">
+  <div class="fact"><dt>Talks</dt><dd>{{ rows|length }}</dd></div>
+  <div class="fact"><dt>Time</dt><dd class="mono">{{ meta.start_time }}–{{ meta.end_time }}</dd></div>
+  <div class="fact"><dt>Span</dt><dd>{% if first_date %}<span class="mono">{{ first_date }}</span>{% if last_date != first_date %}<br><small>to <span class="mono">{{ last_date }}</span></small>{% endif %}{% else %}—{% endif %}</dd></div>
+  {% if status == "generated" %}
+  <div class="fact"><dt>Guides ready</dt><dd>{{ prepared_count }} <small>of {{ rows|length }}</small></dd></div>
+  {% else %}
+  <div class="fact"><dt>Saved</dt><dd class="mono" style="font-size:1rem">{{ meta.created_at[:16].replace('T', ' ') }}</dd></div>
+  {% endif %}
+</dl>
+
+{% macro talks(rows, with_prepare, prepare_statuses) %}
+<div class="timeline">
+  {% set st = namespace(prev=None, open=False) %}
+  {% for row in rows %}
+    {% if row.date != st.prev %}
+      {% if st.open %}</div></div>{% endif %}
+      {% set past = row.date < today %}
+      {% set is_next = (row.date == next_date) %}
+      <div class="day{{ ' is-past' if past }}{{ ' is-next' if is_next }}"><div class="day-date"><span class="mono">{{ row.date }}</span>{% if is_next %}<span class="badge info">{{ 'today' if row.date == today else 'next' }}</span>{% elif past %}<span class="badge plain">past</span>{% endif %}</div><div class="talks">
+      {% set st.open = True %}
+    {% endif %}
+    <div class="talk">
+      <div>
+        <h3>{{ row.paper }}</h3>
+        <p class="who">{{ row.student }}</p>
+      </div>
+      {% if with_prepare %}
+      {% set prep_status = prepare_statuses[loop.index0] if prepare_statuses else "pending" %}
+      {% if prep_status == "generated" %}
+      <a class="button success small" href="/prepare/{{ sid }}/{{ loop.index0 }}" title="Guide ready">Prepare <span class="mono" aria-hidden="true">✓</span></a>
+      {% elif prep_status == "fetching" %}
+      <a class="button prepare-fetching small" href="/prepare/{{ sid }}/{{ loop.index0 }}" title="Generating">Prepare <span class="spinner" aria-hidden="true"></span></a>
       {% else %}
-      <span class="badge muted">parsed</span>
+      <a class="button secondary small" href="/prepare/{{ sid }}/{{ loop.index0 }}">Prepare</a>
       {% endif %}
-    </dd>
-  </dl>
+      {% endif %}
+    </div>
+    {% set st.prev = row.date %}
+  {% endfor %}
+  {% if st.open %}</div></div>{% endif %}
 </div>
+{% endmacro %}
 
 {% if status == "parsed" %}
-<div class="card">
-  <p class="card-title">Parsed sessions (not yet selected for the calendar)</p>
-  <table>
-    <thead><tr><th>Date</th><th>Student</th><th>Paper</th></tr></thead>
-    <tbody>
-      {% for row in rows %}
-      <tr><td>{{ row.date }}</td><td>{{ row.student }}</td><td>{{ row.paper }}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <p class="muted">This schedule was parsed but no calendar was generated yet.</p>
-  <p><a class="button" href="/confirm/{{ sid }}">Resume — confirm &amp; select sessions</a></p>
-</div>
+<p class="card-title section-label">Parsed sessions (not yet selected for the calendar)</p>
+{{ talks(rows, False, []) }}
+<p class="muted">This schedule was parsed but no calendar was generated yet.</p>
+<div class="actions-bar">
+  <a class="button" href="/confirm/{{ sid }}">Resume — confirm &amp; select sessions</a>
 {% else %}
-<div class="card">
-  <p class="card-title">Sessions</p>
-  <table>
-    <thead>
-      <tr><th>Date</th><th>Student</th><th>Paper</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr>
-        <td>{{ row.date }}</td>
-        <td>{{ row.student }}</td>
-        <td>{{ row.paper }}</td>
-        <td class="actions"><a class="button secondary small" href="/prepare/{{ sid }}/{{ loop.index0 }}">Prepare</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <p><a class="button success" href="/download/{{ sid }}">Download .ics</a></p>
-</div>
+<p class="card-title section-label">Selected sessions</p>
+{{ talks(rows, True, prepare_statuses) }}
+<div class="actions-bar">
+  <a class="button success" href="/download/{{ sid }}">Download .ics</a>
 {% endif %}
-
-<form action="/delete/{{ sid }}" method="post"
-      onsubmit="return confirm('Delete this seminar session?')">
-  <button type="submit" class="danger">Delete this session</button>
-</form>
+  <a class="button secondary" href="/session/{{ sid }}/edit">Edit</a>
+  <a href="/edit/{{ sid }}" class="visually-hidden" aria-hidden="true" tabindex="-1">Edit</a>
+  <form action="/delete/{{ sid }}" method="post" class="inline-form spacer"
+        onsubmit="return confirm('Delete this seminar session?')">
+    <button type="submit" class="danger">Delete this session</button>
+  </form>
+</div>
 {% endblock %}

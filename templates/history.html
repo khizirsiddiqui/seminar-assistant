@@ -1,48 +1,65 @@
 {% extends "base.html" %}
+{% block head %}
+<style>
+  .session-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); overflow: hidden; }
+  .session-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s2) var(--s4); align-items: center; padding: var(--s4) var(--s5); transition: background .15s; }
+  .session-item + .session-item { border-top: 1px solid var(--rule); }
+  .session-item:hover { background: var(--surface-2); }
+  .session-item h2 { font-size: 1.25rem; margin: 0 0 var(--s1); overflow-wrap: anywhere; }
+  .session-item h2 a { color: var(--ink); text-decoration: none; }
+  .session-item h2 a:hover { color: var(--accent); }
+  .session-meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: center; color: var(--ink-2); font-size: .88rem; }
+  .session-meta .mono { font-size: .8rem; }
+  .session-progress { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); max-width: 22rem; font-size: .8rem; color: var(--ink-2); }
+  .session-progress .meter { flex: 1; }
+  .session-actions { display: flex; gap: var(--s2); align-items: center; }
+  @media (max-width: 600px) {
+    .session-item { grid-template-columns: minmax(0, 1fr); padding: var(--s4); }
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-head">
+  <p class="eyebrow">{{ sessions|length if sessions else 0 }} saved</p>
   <h1>History</h1>
-  <p class="muted">Saved seminar schedules — resume unfinished ones or download their calendars.</p>
+  <p class="muted">Saved seminar schedules, newest first. Resume unfinished ones or open a calendar and its reading guides.</p>
 </div>
 
 {% if sessions %}
-<div class="card">
-  <table>
-    <thead>
-      <tr><th>Created</th><th>Source</th><th>Venue</th><th>Status</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for s in sessions %}
-      <tr>
-        <td>{{ s.created_at[:19].replace('T', ' ') }}</td>
-        <td>{{ s.source_filename }}</td>
-        <td>{{ s.venue }}</td>
-        <td>
-          {% if s.status == "generated" %}
-          <span class="badge success">generated</span>
-          {% else %}
-          <span class="badge muted">parsed</span>
-          {% endif %}
-        </td>
-        <td class="actions">
-          <a class="button secondary small" href="/session/{{ s.id }}">View</a>
-          <form action="/delete/{{ s.id }}" method="post" style="display:inline"
-                onsubmit="return confirm('Delete this seminar session?')">
-            <button type="submit" class="danger small">Delete</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+<ul class="session-list">
+  {% for s in sessions %}
+  <li class="session-item">
+    <div>
+      <h2><a href="/session/{{ s.id }}">{{ s.course_title if s.course_title else s.source_filename }}</a></h2>
+      <div class="session-meta">
+        {% if s.status == "generated" %}<span class="badge success">generated</span>{% else %}<span class="badge muted">parsed</span>{% endif %}
+        <span class="mono">{{ s.talk_count }} talk{{ '' if s.talk_count == 1 else 's' }}</span>
+        {% if s.first_date %}<span class="mono">{{ s.first_date }}{% if s.last_date != s.first_date %} → {{ s.last_date }}{% endif %}</span>{% endif %}
+        <span>{{ s.venue }}</span>
+        {% if s.course_title %}<span class="mono">{{ s.source_filename }}</span>{% endif %}
+      </div>
+      {% if s.status == "generated" and s.talk_count %}
+      <div class="session-progress">
+        <div class="meter" role="img" aria-label="{{ s.prepared_count }} of {{ s.talk_count }} guides ready"><span style="width: {{ (s.prepared_count / s.talk_count * 100) | round | int }}%"></span></div>
+        <span class="mono">{{ s.prepared_count }}/{{ s.talk_count }} guides</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="session-actions">
+      <a class="button secondary small" href="/session/{{ s.id }}">View</a>
+      <form action="/delete/{{ s.id }}" method="post" class="inline-form"
+            onsubmit="return confirm('Delete this seminar session?')">
+        <button type="submit" class="danger small">Delete</button>
+      </form>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
 {% else %}
-<div class="card">
-  <div class="empty-state">
-    <div class="icon">📅</div>
-    <p>No saved seminars yet.</p>
-    <p><a class="button" href="/">Parse a schedule</a></p>
-  </div>
+<div class="empty-state">
+  <h2>No saved seminars yet</h2>
+  <p class="muted">Parsed schedules show up here so you can come back to them.</p>
+  <div class="row-actions"><a class="button" href="/">Parse a schedule</a></div>
 </div>
 {% endif %}
 {% endblock %}

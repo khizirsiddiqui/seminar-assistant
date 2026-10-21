@@ -2,9 +2,12 @@ fastapi
 uvicorn[standard]
 jinja2
 python-multipart
-pypdf
+pymupdf
+trafilatura
 openai
 icalendar
 pydantic-settings
 pytest
 httpx
+markdown
+bleach
