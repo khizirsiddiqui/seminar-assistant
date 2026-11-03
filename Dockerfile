@@ -1,5 +1,8 @@
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.source="https://github.com/khizirsiddiqui/seminar-assistant" \
+      org.opencontainers.image.description="Seminar Assistant - schedule to ICS calendar and AI reading guides"
+
 WORKDIR /srv
 
 COPY requirements.txt .

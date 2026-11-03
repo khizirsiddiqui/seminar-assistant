@@ -79,8 +79,10 @@ def test_delete_uses_post_only(tmp_path, monkeypatch):
 
 
 def test_history_is_upcoming_first_with_counts(tmp_path, monkeypatch):
-    rows = [{"date": "2026-10-27", "student": "Alice", "paper": "P1"},
-            {"date": "2026-11-03", "student": "Bob", "paper": "P2"}]
+    near = (date.today() + timedelta(days=7)).isoformat()
+    far = (date.today() + timedelta(days=14)).isoformat()
+    rows = [{"date": near, "student": "Alice", "paper": "P1"},
+            {"date": far, "student": "Bob", "paper": "P2"}]
     client = make_client(tmp_path, monkeypatch, rows)
     old = _parse(client)
     new = _parse(client)
@@ -91,8 +93,8 @@ def test_history_is_upcoming_first_with_counts(tmp_path, monkeypatch):
     summaries = _session_summaries()
     assert [s["id"] for s in summaries] == [old, new]
     assert summaries[0]["talk_count"] == 2
-    assert summaries[0]["first_date"] == "2026-10-27"
-    assert summaries[0]["last_date"] == "2026-11-03"
+    assert summaries[0]["first_date"] == near
+    assert summaries[0]["last_date"] == far
 
     page = client.get("/history").text
     assert page.index(old) < page.index(new)

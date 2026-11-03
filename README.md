@@ -78,11 +78,32 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Or build with Docker for arm64:
+Or build with Docker locally (add `--platform linux/arm64` for Apple Silicon):
 
 ```bash
-docker buildx build --platform linux/arm64 -t seminar-assistant:arm64 .
+docker build -t seminar-assistant .
 ```
+
+### Docker image (prebuilt)
+
+Multi-arch images (`linux/amd64`, `linux/arm64`) are published to GitHub Container Registry by `.github/workflows/docker-publish.yml` on every push to `main` and on `v*` git tags:
+
+```bash
+docker pull ghcr.io/khizirsiddiqui/seminar-assistant:latest
+
+docker run --rm -p 8000:8000 \
+  --env-file .env \
+  -v "$PWD/data:/srv/data" \
+  ghcr.io/khizirsiddiqui/seminar-assistant:latest
+```
+
+| Tag | Source |
+|---|---|
+| `latest` | newest push to `main` (also newest `v*` tag) |
+| `sha-xxxxxxx` | every `main` commit |
+| `1.2.3`, `1.2` | git tag `v1.2.3` |
+
+Mounting `./data` keeps sessions and the saved settings file (`data/settings.json`) between runs; `--env-file .env` supplies the LLM settings. The package is private until you change it to public once under **Packages → seminar-assistant → Package settings → Change visibility**.
 
 ### Configuration
 

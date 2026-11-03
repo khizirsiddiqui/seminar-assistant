@@ -780,10 +780,12 @@ async def settings_test_connection(llm_base_url: str = Form(""), llm_api_key: st
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=422)
     try:
-        _ = llm.list_models(base_url, api_key)
+        models = llm.list_models(base_url, api_key)
     except Exception as e:
         logger.warning("Connection test to %s failed", base_url, exc_info=True)
         return JSONResponse({"error": llm.describe_error(e)}, status_code=502)
+    if models:
+        return {"message": f"Connection successful — {len(models)} models available."}
     return {"message": "Connection successful."}
 
 
