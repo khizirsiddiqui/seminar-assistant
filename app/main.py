@@ -12,6 +12,13 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app import arxiv, llm, storage
+from app.config import (
+    SETTING_FIELDS,
+    get_settings,
+    load_saved_settings,
+    setting_sources,
+    update_saved_settings,
+)
 from app.extract import extract_text
 from app.ics import build_calendar
 
@@ -650,6 +657,136 @@ async def history(request: Request):
                                       context={"sessions": _session_summaries()})
 
 
+def _mask_secret(value: str) -> str:
+    if not value:
+        return ""
+    if len(value) <= 8:
+        return "\u2022" * len(value)
+    return f"{value[:3]}\u2026{value[-4:]}"
+
+
+def _settings_context(request: Request, values: dict | None = None,
+                      error: str | None = None) -> dict:
+    s = get_settings()
+    sources = setting_sources()
+    effective = {field: getattr(s, field) for field in SETTING_FIELDS}
+    for field, value in (values or {}).items():
+        if field in SETTING_FIELDS and sources[field] not in ("environment", ".env"):
+            effective[field] = value
+    effective["llm_api_key"] = ""
+    return {
+        "request": request,
+        "values": effective,
+        "sources": sources,
+        "overridden": {field: sources[field] in ("environment", ".env")
+                       for field in SETTING_FIELDS},
+        "api_key_masked": _mask_secret(s.llm_api_key),
+        "api_key_saved": bool(load_saved_settings().get("llm_api_key")),
+        "error": error,
+    }
+
+
+@app.get("/settings")
+async def settings_page(request: Request):
+    return templates.TemplateResponse(request=request, name="settings.html",
+                                      context=_settings_context(request))
+
+
+@app.post("/settings")
+async def settings_save(request: Request):
+    form = await request.form()
+    sources = setting_sources()
+    updates = {}
+    submitted = {}
+    error = None
+
+    if sources["llm_base_url"] not in ("environment", ".env"):
+        base_url = str(form.get("llm_base_url", "")).strip()
+        submitted["llm_base_url"] = base_url
+        if not base_url.startswith(("http://", "https://")):
+            error = "Base URL must start with http:// or https://."
+        else:
+            updates["llm_base_url"] = base_url
+
+    if sources["llm_model"] not in ("environment", ".env"):
+        model = str(form.get("llm_model", "")).strip()
+        submitted["llm_model"] = model
+        if not error and not model:
+            error = "Model is required."
+        elif not error:
+            updates["llm_model"] = model
+
+    if sources["arxiv_timeout_seconds"] not in ("environment", ".env"):
+        raw_timeout = str(form.get("arxiv_timeout_seconds", "")).strip()
+        submitted["arxiv_timeout_seconds"] = raw_timeout
+        if not error:
+            try:
+                timeout = int(raw_timeout)
+            except ValueError:
+                error = "arXiv timeout must be a whole number between 1 and 3600."
+            else:
+                if 1 <= timeout <= 3600:
+                    updates["arxiv_timeout_seconds"] = timeout
+                else:
+                    error = "arXiv timeout must be a whole number between 1 and 3600."
+
+    remove = ()
+    if sources["llm_api_key"] not in ("environment", ".env"):
+        api_key = str(form.get("llm_api_key", "")).strip()
+        if str(form.get("clear_llm_api_key", "")) == "1":
+            remove = ("llm_api_key",)
+        elif api_key:
+            updates["llm_api_key"] = api_key
+
+    if error:
+        return templates.TemplateResponse(
+            request=request, name="settings.html", status_code=422,
+            context=_settings_context(request, values=submitted, error=error))
+
+    update_saved_settings(updates, remove=remove)
+    return RedirectResponse("/settings", status_code=303)
+
+
+def _resolve_llm_credentials(llm_base_url: str, llm_api_key: str) -> tuple[str, str]:
+    """Form values when provided, otherwise the effective saved/env settings."""
+    s = get_settings()
+    base_url = llm_base_url.strip() or s.llm_base_url
+    api_key = llm_api_key.strip() or s.llm_api_key
+    if not base_url.startswith(("http://", "https://")):
+        raise ValueError("Base URL must start with http:// or https://.")
+    if not api_key:
+        raise ValueError("API key is required.")
+    return base_url, api_key
+
+
+@app.post("/settings/models")
+async def settings_models(llm_base_url: str = Form(""), llm_api_key: str = Form("")):
+    try:
+        base_url, api_key = _resolve_llm_credentials(llm_base_url, llm_api_key)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=422)
+    try:
+        models = llm.list_models(base_url, api_key)
+    except Exception as e:
+        logger.exception("Could not list models from %s", base_url)
+        return JSONResponse({"error": llm.describe_error(e)}, status_code=502)
+    return {"models": models}
+
+
+@app.post("/settings/test-connection")
+async def settings_test_connection(llm_base_url: str = Form(""), llm_api_key: str = Form("")):
+    try:
+        base_url, api_key = _resolve_llm_credentials(llm_base_url, llm_api_key)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=422)
+    try:
+        _ = llm.list_models(base_url, api_key)
+    except Exception as e:
+        logger.warning("Connection test to %s failed", base_url, exc_info=True)
+        return JSONResponse({"error": llm.describe_error(e)}, status_code=502)
+    return {"message": "Connection successful."}
+
+
 @app.get("/session/{sid}")
 async def session_detail(request: Request, sid: str):
     try:
@@ -691,7 +828,6 @@ async def session_detail(request: Request, sid: str):
                                                "last_date": dates[-1] if dates else None})
 
 
-
 async def _edit_form(request: Request, sid: str):
     try:
         meta = storage.get_session(sid)
@@ -730,7 +866,6 @@ async def _edit_submit(request: Request, sid: str):
         storage.save_ics(sid, ics_text)
 
     return RedirectResponse(f"/session/{sid}", status_code=303)
-
 
 
 @app.get("/edit/{sid}")

@@ -132,7 +132,7 @@
     /* Forms */
     label { display: block; margin: var(--s4) 0 var(--s1); font-weight: 600; font-size: .9rem; }
     .card > label:first-of-type, .card > .card-title + label { margin-top: 0; }
-    input[type=text], input[type=number], input[type=time], textarea, select {
+    input[type=text], input[type=number], input[type=time], input[type=password], textarea, select {
       width: 100%; padding: .6rem .75rem; font: inherit; font-size: .95rem;
       border: 1px solid var(--rule); border-radius: var(--r-sm); background: var(--bg); color: var(--ink);
       transition: border-color .15s, box-shadow .15s;
@@ -263,6 +263,7 @@
       <nav class="main-nav" aria-label="Main">
         <a href="/" {% if request.url.path == "/" %}aria-current="page"{% endif %}>New schedule</a>
         <a href="/history" {% if request.url.path == "/history" %}aria-current="page"{% endif %}>History</a>
+        <a href="/settings" {% if request.url.path == "/settings" %}aria-current="page"{% endif %}>Settings</a>
       </nav>
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme" title="Switch colour theme">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>

@@ -1,6 +1,8 @@
 import json
 import logging
+from types import SimpleNamespace
 
+import openai
 import pytest
 
 from app import llm as llm_mod
@@ -306,3 +308,22 @@ def test_preparation_section_content_omits_other_titles_suffix_by_default(monkey
     }, "Method")
 
     assert "The other sections of this guide are:" not in captured[0]["messages"][1]["content"]
+
+
+def test_describe_error_summarises_transport_and_status_failures():
+    request = object()
+    assert llm_mod.describe_error(openai.APITimeoutError(request=request)) == \
+        "The API did not respond within 15 seconds."
+
+    exc = openai.APIConnectionError(request=request)
+    exc.__cause__ = OSError("Connection refused")
+    assert llm_mod.describe_error(exc) == "Could not reach the API: Connection refused"
+
+    not_found = openai.NotFoundError(
+        "Error code: 404",
+        response=SimpleNamespace(status_code=404, headers={}, request=request),
+        body={"error": {}})
+    assert llm_mod.describe_error(not_found) == \
+        "Endpoint not found; check the Base URL (HTTP 404)."
+
+    assert llm_mod.describe_error(ValueError("boom")) == "ValueError: boom"

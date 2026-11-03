@@ -6,7 +6,7 @@ import threading
 import time
 from pathlib import Path
 
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 
 from app.config import get_settings
 
@@ -54,6 +54,50 @@ def _report_usage(usage) -> None:
 def _client() -> OpenAI:
     s = get_settings()
     return OpenAI(base_url=s.llm_base_url, api_key=s.llm_api_key)
+
+
+MODELS_TIMEOUT_SECONDS = 15.0
+
+
+def list_models(base_url: str, api_key: str) -> list[str]:
+    client = OpenAI(base_url=base_url, api_key=api_key, timeout=MODELS_TIMEOUT_SECONDS)
+    return sorted(model.id for model in client.models.list().data)
+
+
+def _provider_message(exc: APIStatusError) -> str:
+    body = exc.body
+    message = ""
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict) and isinstance(error.get("message"), str):
+            message = error["message"]
+        elif isinstance(body.get("message"), str):
+            message = body["message"]
+    elif isinstance(body, str):
+        message = body
+    return " ".join(message.split())[:300]
+
+
+def describe_error(exc: Exception) -> str:
+    """Summarise a provider or transport failure for the settings page."""
+    if isinstance(exc, APITimeoutError):
+        return f"The API did not respond within {MODELS_TIMEOUT_SECONDS:.0f} seconds."
+    if isinstance(exc, APIConnectionError):
+        cause = str(exc.__cause__).strip() if exc.__cause__ is not None else ""
+        return f"Could not reach the API: {cause}" if cause else "Could not reach the API."
+    if isinstance(exc, APIStatusError):
+        status = exc.status_code
+        labels = {
+            401: "Authentication failed",
+            403: "Permission denied",
+            404: "Endpoint not found; check the Base URL",
+            429: "Rate limited by the provider",
+        }
+        label = labels.get(status, "The API returned an error")
+        message = _provider_message(exc)
+        return f"{label} (HTTP {status}): {message}" if message else f"{label} (HTTP {status})."
+    return f"{type(exc).__name__}: {exc}"
+
 
 SYSTEM_PROMPT = load_prompt("schedule.md")
 

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+  .model-field { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+  .model-field input { flex: 1 1 14rem; width: auto; }
+  .model-results { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
+  .model-results button { font-family: var(--font-mono); }
+  [data-status="ok"] { color: var(--ok); }
+  [data-status="error"] { color: var(--bad); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <p class="eyebrow">Configuration</p>
+  <h1>Settings</h1>
+  <p class="muted">Saved values are used unless the same variable is present in the process environment or <code>.env</code>, which takes precedence for that field.</p>
+</div>
+
+{% if error %}
+<div class="alert-error" role="alert"><p>{{ error }}</p></div>
+{% endif %}
+
+<form id="settings-form" action="/settings" method="post">
+  <section class="card">
+    <h2 class="card-title">OpenAI-compatible API</h2>
+
+    <label for="llm_base_url">Base URL</label>
+    <input type="text" id="llm_base_url" name="llm_base_url"
+           value="{{ values.llm_base_url }}"
+           {% if overridden.llm_base_url %}disabled{% endif %}>
+    {% if overridden.llm_base_url %}<span class="badge plain">Set by {{ sources.llm_base_url }}</span>{% endif %}
+
+    <label for="llm_api_key">API key</label>
+    <input type="password" id="llm_api_key" name="llm_api_key" value=""
+           autocomplete="new-password"
+           {% if overridden.llm_api_key %}
+           placeholder="Set by .env"
+           disabled
+           {% else %}
+           placeholder="{{ api_key_masked or 'sk-...' }}"
+           {% endif %}>
+    {% if overridden.llm_api_key %}
+    <span class="badge plain">Set by {{ sources.llm_api_key }}</span>
+    <p class="field-hint">The saved API key is ignored while this field is set by the environment.</p>
+    {% endif %}
+    {% if api_key_saved and not overridden.llm_api_key %}
+    <p class="field-hint">
+      <input type="checkbox" id="clear_llm_api_key" name="clear_llm_api_key" value="1">
+      <label for="clear_llm_api_key" style="display: inline; margin: 0; font-weight: inherit; font-size: inherit;">Clear saved API key</label>
+    </p>
+    {% endif %}
+
+    <label for="llm_model">Model</label>
+    <div class="model-field">
+      <input type="text" id="llm_model" name="llm_model" list="model-options"
+             value="{{ values.llm_model }}"
+             {% if overridden.llm_model %}disabled{% endif %}>
+      {% if not overridden.llm_model %}
+      <button type="button" class="button secondary small" id="list-models">List models</button>
+      {% endif %}
+    </div>
+    <datalist id="model-options"></datalist>
+    {% if overridden.llm_model %}<span class="badge plain">Set by {{ sources.llm_model }}</span>{% endif %}
+    <p class="field-hint" id="model-status" role="status"></p>
+    <div id="model-results" class="model-results"></div>
+
+    <div class="row-actions">
+      <button type="button" class="button secondary" id="test-connection">Test connection</button>
+    </div>
+    <p class="field-hint" id="connection-status" role="status"></p>
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">arXiv</h2>
+
+    <label for="arxiv_timeout_seconds">Timeout (seconds)</label>
+    <input type="number" id="arxiv_timeout_seconds" name="arxiv_timeout_seconds"
+           min="1" max="3600" value="{{ values.arxiv_timeout_seconds }}"
+           {% if overridden.arxiv_timeout_seconds %}disabled{% endif %}>
+    {% if overridden.arxiv_timeout_seconds %}<span class="badge plain">Set by {{ sources.arxiv_timeout_seconds }}</span>{% endif %}
+  </section>
+
+  <div class="row-actions">
+    <button type="submit">Save settings</button>
+  </div>
+</form>
+
+<script>
+  (function () {
+    var form = document.getElementById("settings-form");
+    var testBtn = document.getElementById("test-connection");
+    var listBtn = document.getElementById("list-models");
+    var connectionStatus = document.getElementById("connection-status");
+    var modelStatus = document.getElementById("model-status");
+    var modelInput = document.getElementById("llm_model");
+    var modelOptions = document.getElementById("model-options");
+    var modelResults = document.getElementById("model-results");
+
+    function setStatus(el, text, status) {
+      el.textContent = text;
+      if (status) {
+        el.dataset.status = status;
+      } else {
+        delete el.dataset.status;
+      }
+    }
+
+    async function postForm(url) {
+      var resp = await fetch(url, { method: "POST", body: new FormData(form) });
+      var data = {};
+      try { data = await resp.json(); } catch (e) {}
+      return { ok: resp.ok, data: data };
+    }
+
+    testBtn.addEventListener("click", async function (event) {
+      event.preventDefault();
+      testBtn.disabled = true;
+      setStatus(connectionStatus, "Testing connection…", null);
+      try {
+        var result = await postForm("/settings/test-connection");
+        if (result.ok) {
+          setStatus(connectionStatus, result.data.message || "Connection successful.", "ok");
+        } else {
+          setStatus(connectionStatus, result.data.error || "Could not test the connection.", "error");
+        }
+      } catch (e) {
+        setStatus(connectionStatus, "Could not reach the app server.", "error");
+      } finally {
+        testBtn.disabled = false;
+      }
+    });
+
+    if (listBtn) {
+      listBtn.addEventListener("click", async function (event) {
+        event.preventDefault();
+        listBtn.disabled = true;
+        setStatus(modelStatus, "Fetching models…", null);
+        try {
+          var result = await postForm("/settings/models");
+          modelOptions.replaceChildren();
+          modelResults.replaceChildren();
+          if (!result.ok) {
+            setStatus(modelStatus, result.data.error || "Could not list models.", "error");
+            return;
+          }
+          var models = result.data.models || [];
+          models.forEach(function (id) {
+            var option = document.createElement("option");
+            option.value = id;
+            modelOptions.appendChild(option);
+
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = "button secondary small";
+            button.textContent = id;
+            button.addEventListener("click", function () {
+              modelInput.value = id;
+            });
+            modelResults.appendChild(button);
+          });
+          if (models.length) {
+            setStatus(modelStatus, models.length + " model(s) available. Click one to select it.", "ok");
+          } else {
+            setStatus(modelStatus, "The API returned no models.", null);
+          }
+        } catch (e) {
+          setStatus(modelStatus, "Could not reach the app server.", "error");
+        } finally {
+          listBtn.disabled = false;
+        }
+      });
+    }
+  })();
+</script>
+{% endblock %}
