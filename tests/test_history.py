@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from fastapi.testclient import TestClient
 
 from app import storage
@@ -76,7 +78,7 @@ def test_delete_uses_post_only(tmp_path, monkeypatch):
     assert (tmp_path / sid).exists()
 
 
-def test_history_is_newest_first_with_counts(tmp_path, monkeypatch):
+def test_history_is_upcoming_first_with_counts(tmp_path, monkeypatch):
     rows = [{"date": "2026-10-27", "student": "Alice", "paper": "P1"},
             {"date": "2026-11-03", "student": "Bob", "paper": "P2"}]
     client = make_client(tmp_path, monkeypatch, rows)
@@ -87,12 +89,51 @@ def test_history_is_newest_first_with_counts(tmp_path, monkeypatch):
 
     from app.main import _session_summaries
     summaries = _session_summaries()
-    assert [s["id"] for s in summaries] == [new, old]
+    assert [s["id"] for s in summaries] == [old, new]
     assert summaries[0]["talk_count"] == 2
     assert summaries[0]["first_date"] == "2026-10-27"
     assert summaries[0]["last_date"] == "2026-11-03"
 
     page = client.get("/history").text
-    assert page.index(new) < page.index(old)
+    assert page.index(old) < page.index(new)
     assert "2 talks" in page
     assert new in client.get("/").text
+
+
+def test_history_sorts_same_date_by_start_time(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "DATA_DIR", tmp_path)
+    future = (date.today() + timedelta(days=7)).isoformat()
+
+    later = storage.create_session("later", "V", "16:00", "17:00", "later.txt", "Later")
+    storage.save_parsed(later, [{"date": future, "student": "A", "paper": "P"}])
+    storage.update_session_meta(later, created_at="2026-01-01T00:00:00+00:00")
+
+    earlier = storage.create_session("earlier", "V", "09:00", "10:00", "earlier.txt", "Earlier")
+    storage.save_parsed(earlier, [{"date": future, "student": "B", "paper": "P"}])
+    storage.update_session_meta(earlier, created_at="2026-06-01T00:00:00+00:00")
+
+    from app.main import _session_summaries
+    summaries = _session_summaries()
+    assert [s["id"] for s in summaries] == [earlier, later]
+
+
+def test_history_treats_today_ended_session_as_past(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "DATA_DIR", tmp_path)
+    today = date.today().isoformat()
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+
+    # Ends at 00:01, so by the time the suite runs it is already in the past.
+    ended = storage.create_session("ended", "V", "00:00", "00:01", "ended.txt", "Ended")
+    storage.save_parsed(ended, [{"date": today, "student": "A", "paper": "P"}])
+    storage.update_session_meta(ended, created_at="2026-06-01T00:00:00+00:00")
+
+    upcoming = storage.create_session("upcoming", "V", "09:00", "10:00",
+                                      "upcoming.txt", "Upcoming")
+    storage.save_parsed(upcoming, [{"date": tomorrow, "student": "B", "paper": "P"}])
+    storage.update_session_meta(upcoming, created_at="2026-01-01T00:00:00+00:00")
+
+    from app.main import _session_summaries
+    summaries = _session_summaries()
+    assert [s["id"] for s in summaries] == [upcoming, ended]
+    assert summaries[0]["next_at"] is not None
+    assert summaries[1]["next_at"] is None

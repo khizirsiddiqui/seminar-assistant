@@ -13,6 +13,9 @@
   .session-progress { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); max-width: 22rem; font-size: .8rem; color: var(--ink-2); }
   .session-progress .meter { flex: 1; }
   .session-actions { display: flex; gap: var(--s2); align-items: center; }
+  .history-group { margin-bottom: var(--s6); }
+  .history-group:last-child { margin-bottom: 0; }
+  .history-group .session-list { margin-top: var(--s3); }
   @media (max-width: 600px) {
     .session-item { grid-template-columns: minmax(0, 1fr); padding: var(--s4); }
   }
@@ -22,12 +25,10 @@
 <div class="page-head">
   <p class="eyebrow">{{ sessions|length if sessions else 0 }} saved</p>
   <h1>History</h1>
-  <p class="muted">Saved seminar schedules, newest first. Resume unfinished ones or open a calendar and its reading guides.</p>
+  <p class="muted">Saved seminar schedules, upcoming seminars first, then past ones, newest first. Resume unfinished ones or open a calendar and its reading guides.</p>
 </div>
 
-{% if sessions %}
-<ul class="session-list">
-  {% for s in sessions %}
+{% macro session_item(s) %}
   <li class="session-item">
     <div>
       <h2><a href="/session/{{ s.id }}">{{ s.course_title if s.course_title else s.source_filename }}</a></h2>
@@ -53,8 +54,31 @@
       </form>
     </div>
   </li>
-  {% endfor %}
-</ul>
+{% endmacro %}
+
+{% if sessions %}
+{% set upcoming_sessions = sessions | selectattr("next_date") | list %}
+{% set past_sessions = sessions | rejectattr("next_date") | list %}
+{% if upcoming_sessions %}
+<section class="history-group" aria-labelledby="upcoming-heading">
+  <h2 class="card-title" id="upcoming-heading">Upcoming seminars</h2>
+  <ul class="session-list">
+    {% for s in upcoming_sessions %}
+    {{ session_item(s) }}
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% if past_sessions %}
+<section class="history-group" aria-labelledby="past-heading">
+  <h2 class="card-title" id="past-heading">Past seminars</h2>
+  <ul class="session-list">
+    {% for s in past_sessions %}
+    {{ session_item(s) }}
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 {% else %}
 <div class="empty-state">
   <h2>No saved seminars yet</h2>

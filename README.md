@@ -78,6 +78,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Or build with Docker for arm64:
+
+```bash
+docker buildx build --platform linux/arm64 -t seminar-assistant:arm64 .
+```
+
 ### Configuration
 
 Copy the example environment file and fill in your values:

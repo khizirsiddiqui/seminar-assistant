@@ -600,7 +600,8 @@ async def prepare_resume(request: Request, sid: str, row_index: int):
 
 
 def _session_summaries() -> list[dict]:
-    """Session metas with status, talk/guide counts and date range, newest first."""
+    """Session metas with status, talk/guide counts and date range, upcoming first then past newest first."""
+    now = datetime.now()
     summaries = []
     for sid in storage.list_sessions():
         try:
@@ -613,6 +614,21 @@ def _session_summaries() -> list[dict]:
         except FileNotFoundError:
             rows = []
         dates = sorted(r["date"] for r in rows if r.get("date"))
+        start_time = meta.get("start_time") or "00:00"
+        end_time = meta.get("end_time") or start_time
+        upcoming_dts = []
+        for d in dates:
+            start_dt = datetime.strptime(f"{d}T{start_time}", "%Y-%m-%dT%H:%M")
+            end_dt = datetime.strptime(f"{d}T{end_time}", "%Y-%m-%dT%H:%M")
+            if start_dt.date() > now.date() or (
+                    start_dt.date() == now.date() and end_dt > now):
+                upcoming_dts.append(start_dt)
+        meta["next_date"] = (
+            min(d.date().isoformat() for d in upcoming_dts) if upcoming_dts else None
+        )
+        meta["next_at"] = (
+            min(upcoming_dts).isoformat(timespec="minutes") if upcoming_dts else None
+        )
         meta["status"] = "generated" if generated else "parsed"
         meta["talk_count"] = len(rows)
         meta["first_date"] = dates[0] if dates else None
@@ -621,8 +637,11 @@ def _session_summaries() -> list[dict]:
             sum(1 for i in range(len(rows)) if storage.load_preparation(sid, i) is not None)
             if generated else 0)
         summaries.append(meta)
-    summaries.sort(key=lambda m: m.get("created_at", ""), reverse=True)
-    return summaries
+    upcoming = sorted((m for m in summaries if m["next_at"]),
+                      key=lambda m: (m["next_at"], m.get("created_at", "")))
+    past = sorted((m for m in summaries if not m["next_at"]),
+                  key=lambda m: m.get("created_at", ""), reverse=True)
+    return upcoming + past
 
 
 @app.get("/history")
