@@ -103,7 +103,11 @@ docker run --rm -p 8000:8000 \
 | `sha-xxxxxxx` | every `main` commit |
 | `1.2.3`, `1.2` | git tag `v1.2.3` |
 
-Mounting `./data` keeps sessions and the saved settings file (`data/settings.json`) between runs; `--env-file .env` supplies the LLM settings. The package is private until you change it to public once under **Packages → seminar-assistant → Package settings → Change visibility**.
+Mounting `./data` keeps sessions and the saved settings file (`data/settings.json`) between runs; `--env-file .env` supplies the LLM settings. Pulls need no authentication. If you ever make the package private (**Packages → seminar-assistant → Package settings → Change visibility**), log in first with a token carrying `read:packages`:
+
+```bash
+echo "$GH_TOKEN" | docker login ghcr.io -u khizirsiddiqui --password-stdin
+```
 
 ### Configuration
 
