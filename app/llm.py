@@ -162,6 +162,7 @@ PREPARATION_SYSTEM_PROMPT = load_prompt("preparation_sections.md")
 PREPARATION_SECTION_SYSTEM_PROMPT = load_prompt("preparation_section.md")
 PREPARATION_CLOSING_SYSTEM_PROMPT = load_prompt("preparation_closing.md")
 PREPARATION_COMMON_PROMPT = load_prompt("preparation_common.md")
+CHAT_SYSTEM_PROMPT = load_prompt("preparation_chat.md")
 
 
 def _preparation_user_message(paper: dict) -> str:
@@ -219,6 +220,35 @@ def _chat_json(task_prompt: str, paper_message: str, *, temperature: float, extr
                 duration, getattr(usage, "prompt_tokens", "?"), _cached_tokens(usage),
                 getattr(usage, "completion_tokens", "?"), raw_content)
     return json.loads(raw_content)
+
+
+def answer_question(context: str, messages: list[dict]) -> str:
+    """Answer one chat turn. The system prompt and context form a stable prefix."""
+    s = get_settings()
+    payload = [
+        {"role": "system", "content": f"{CHAT_SYSTEM_PROMPT}\n\n# Reference material\n\n{context}"},
+        *messages,
+    ]
+    logger.info("LLM request: model=%s base_url=%s messages=%d chars=%d",
+                s.llm_model, s.llm_base_url, len(payload),
+                sum(len(m["content"]) for m in payload))
+    start = time.monotonic()
+    try:
+        resp = _client().chat.completions.create(model=s.llm_model, messages=payload,
+                                                 temperature=0.2)
+    except Exception:
+        logger.exception("LLM request failed after %.2fs", time.monotonic() - start)
+        raise
+    duration = time.monotonic() - start
+    raw_content = resp.choices[0].message.content
+    usage = getattr(resp, "usage", None)
+    _report_usage(usage)
+    logger.info("LLM response: duration=%.2fs prompt_tokens=%s cached_tokens=%s completion_tokens=%s content=%s",
+                duration, getattr(usage, "prompt_tokens", "?"), _cached_tokens(usage),
+                getattr(usage, "completion_tokens", "?"), raw_content)
+    if not isinstance(raw_content, str) or not raw_content.strip():
+        raise ValueError("LLM chat response was empty.")
+    return raw_content.strip()
 
 
 PAPER_METADATA_SYSTEM_PROMPT = load_prompt("paper_metadata.md")

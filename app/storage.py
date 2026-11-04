@@ -114,6 +114,40 @@ def clear_sections(sid: str, row_index: int) -> None:
         shutil.rmtree(sections_dir)
 
 
+def save_paper_text(sid: str, row_index: int, text: str) -> None:
+    (_preparation_dir(sid, row_index) / f"{row_index}.paper.txt").write_text(
+        text, encoding="utf-8")
+
+
+def load_paper_text(sid: str, row_index: int) -> str | None:
+    path = _dir(sid) / "preparation" / f"{row_index}.paper.txt"
+    if not path.is_file():
+        return None
+    return path.read_text(encoding="utf-8")
+
+
+def clear_paper_text(sid: str, row_index: int) -> None:
+    path = _dir(sid) / "preparation" / f"{row_index}.paper.txt"
+    if path.is_file():
+        path.unlink()
+
+
+def save_chat(sid: str, row_index: int, chat: dict) -> None:
+    _write_json(_preparation_dir(sid, row_index) / f"{row_index}.chat.json", chat)
+
+
+def load_chat(sid: str, row_index: int) -> dict:
+    path = _dir(sid) / "preparation" / f"{row_index}.chat.json"
+    data = json.loads(path.read_text()) if path.is_file() else {}
+    return {"messages": data.get("messages") or [], "links": data.get("links") or []}
+
+
+def clear_chat(sid: str, row_index: int) -> None:
+    path = _dir(sid) / "preparation" / f"{row_index}.chat.json"
+    if path.is_file():
+        path.unlink()
+
+
 def clear_generation_state(sid: str, row_index: int) -> None:
     state_file = _dir(sid) / "preparation" / f"{row_index}.state.json"
     if state_file.is_file():

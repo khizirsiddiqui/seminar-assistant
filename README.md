@@ -25,6 +25,7 @@ Built with **FastAPI**, server-rendered **Jinja2** templates, and flat-file JSON
 - **ICS calendar generation** — Generate a downloadable `.ics` calendar. Talks sharing a date are grouped into a single event with each student/paper listed in the description.
 - **Per-paper preparation guides** — For each talk, the app resolves the paper (arXiv search or a direct article/PDF URL), downloads and truncates the text, and generates AI sections plus an executive briefing.
 - **Pause / resume / regenerate** — Long-running guide generation can be paused, resumed (only unfinished sections are generated), or regenerated from scratch.
+- **Ask about the paper** — A chat dock on every preparation page answers follow-up questions using the configured LLM, with selectable context (the paper text, the generated summary, and up to five links you add). The conversation and links are saved per paper; regenerating the guide starts a fresh conversation.
 - **Session history** — Past seminars are saved and listed with preparation progress, so you can pick up where you left off.
 - **Markdown rendering** — AI output is rendered as sanitized Markdown (via `bleach`); fenced code and sane lists are supported.
 
@@ -172,7 +173,7 @@ Tests run fully offline: LLM calls are stubbed with fake clients returning canne
 All data is stored as JSON files under `data/sessions/<sid>/` (no database). Per session:
 
 - `meta.json`, `raw.txt`, `parsed.json`, `selected.json`, `calendar.ics`
-- `preparation/` with per-row state (`<row>.state.json`), individual sections (`<row>.sections/<i>.json`), and the final guide (`<row>.json`)
+- `preparation/` with per-row state (`<row>.state.json`), individual sections (`<row>.sections/<i>.json`), the final guide (`<row>.json`), the persisted paper text (`<row>.paper.txt`, used as chat context), and the chat record (`<row>.chat.json` with `messages` and `links`)
 
 ## Disclaimer
 

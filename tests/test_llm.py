@@ -327,3 +327,65 @@ def test_describe_error_summarises_transport_and_status_failures():
         "Endpoint not found; check the Base URL (HTTP 404)."
 
     assert llm_mod.describe_error(ValueError("boom")) == "ValueError: boom"
+
+
+def test_answer_question_sends_context_prefix_and_reports_usage(monkeypatch):
+    captured = []
+
+    class FakeUsage:
+        prompt_tokens = 900
+        completion_tokens = 20
+        total_tokens = 920
+        prompt_tokens_details = type("D", (), {"cached_tokens": 640})()
+
+    class FakeResp:
+        choices = [type("C", (), {"message": type("M", (), {"content": "**Answer**"})()})]
+        usage = FakeUsage()
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            captured.append(kwargs)
+            return FakeResp()
+
+    class FakeClient:
+        chat = type("Chat", (), {"completions": FakeCompletions()})()
+
+    monkeypatch.setattr(llm_mod, "_client", lambda: FakeClient())
+    reported = []
+    history = [{"role": "user", "content": "Earlier question?"},
+               {"role": "assistant", "content": "Earlier answer."},
+               {"role": "user", "content": "Why attention?"}]
+    llm_mod.set_usage_callback(reported.append)
+    try:
+        answer = llm_mod.answer_question("CONTEXT-MARKER paper text.", history)
+    finally:
+        llm_mod.clear_usage_callback()
+
+    assert answer == "**Answer**"
+    assert len(captured) == 1
+    messages = captured[0]["messages"]
+    assert messages[0]["role"] == "system"
+    assert "Reference material" in messages[0]["content"]
+    assert "CONTEXT-MARKER paper text." in messages[0]["content"]
+    assert messages[1:] == history
+    assert captured[0]["temperature"] == 0.2
+    assert "response_format" not in captured[0]
+    assert reported == [{"prompt_tokens": 900, "completion_tokens": 20,
+                         "total_tokens": 920, "cached_tokens": 640}]
+
+
+def test_answer_question_rejects_empty_content(monkeypatch):
+    class FakeResp:
+        choices = [type("C", (), {"message": type("M", (), {"content": "   "})()})]
+        usage = None
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            return FakeResp()
+
+    class FakeClient:
+        chat = type("Chat", (), {"completions": FakeCompletions()})()
+
+    monkeypatch.setattr(llm_mod, "_client", lambda: FakeClient())
+    with pytest.raises(ValueError, match="LLM chat response was empty."):
+        llm_mod.answer_question("context", [{"role": "user", "content": "hi"}])

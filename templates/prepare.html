@@ -53,6 +53,53 @@
     .prep-side { position: static; order: -1; }
     .prep-side .toc-panel { display: none; }
   }
+  .chat-dock { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 30; }
+  /* The dock floats over the page, so reserve room under the footer to keep it clear. */
+  body { padding-bottom: calc(44px + 20px + env(safe-area-inset-bottom, 0px)); }
+  #chat-toggle { display: inline-flex; align-items: center; gap: var(--s2); min-height: 44px; padding: .55rem 1.15rem; border-radius: 999px; background: var(--accent); color: var(--on-accent); border: 1px solid transparent; font: 600 .93rem/1.3 var(--font-body); cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
+  #chat-toggle:hover { background: var(--accent-hover); color: var(--on-accent); }
+  #chat-toggle:focus-visible { box-shadow: var(--focus), 0 6px 20px rgba(0, 0, 0, .18); }
+  #chat-toggle[aria-expanded="true"] { display: none; }
+  #chat-panel { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 31; width: min(420px, calc(100vw - 32px)); height: min(70vh, 640px); height: min(70dvh, 640px); overflow-y: auto; display: flex; flex-direction: column; gap: var(--s3); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); box-shadow: 0 12px 32px rgba(0, 0, 0, .22); padding: var(--s4); }
+  #chat-panel[hidden] { display: none; }
+  /* Short viewports: 70dvh clips the composer/hint, so use nearly the full height. */
+  @media (max-height: 720px) { #chat-panel { height: min(calc(100dvh - 32px), 640px); } }
+  @media (max-width: 380px) { #chat-panel { width: calc(100vw - 24px); left: max(12px, env(safe-area-inset-left, 0px)); padding: var(--s3); } }
+  .chat-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
+  .chat-head .card-title { margin: 0; }
+  .chat-ai { font-size: .66rem; letter-spacing: .06em; padding: .05rem .35rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+  #chat-close { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; padding: 0; background: transparent; color: var(--ink-2); border: 1px solid var(--rule); border-radius: var(--r-sm); line-height: 1; font-size: 1.1rem; }
+  #chat-close:hover { background: var(--surface-2); color: var(--ink); }
+  .chat-context { display: flex; flex-direction: column; gap: var(--s1); font-size: .85rem; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: var(--s3) 0; }
+  .chat-context label { display: inline-flex; align-items: center; gap: var(--s2); margin: 0; font-weight: 500; font-size: .85rem; }
+  #chat-links { list-style: none; margin: var(--s2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s1); }
+  #chat-links li { display: flex; align-items: center; gap: var(--s2); font-size: .82rem; color: var(--ink-2); }
+  #chat-links li span.link-url { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .chat-link-remove { display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; min-height: 2rem; background: transparent; border: none; color: var(--ink-2); font-size: 1rem; line-height: 1; padding: 0; cursor: pointer; border-radius: var(--r-sm); }
+  .chat-link-remove:hover { color: var(--bad); }
+  #chat-link-form { display: flex; gap: var(--s2); margin-top: var(--s2); }
+  #chat-link-form input { flex: 1; min-width: 0; }
+  #chat-messages { overflow-y: auto; flex: 1 1 auto; min-height: 4rem; display: flex; flex-direction: column; gap: var(--s2); }
+  .chat-msg { font-size: .9rem; line-height: 1.55; padding: var(--s2) var(--s3); border-radius: var(--r-sm); max-width: 90%; }
+  .chat-msg p { margin: 0 0 var(--s2); }
+  .chat-msg > :last-child { margin-bottom: 0; }
+  .chat-msg.user { align-self: flex-end; background: var(--surface-2); }
+  .chat-msg.assistant { align-self: flex-start; background: transparent; border: 1px solid var(--rule); }
+  .chat-msg.assistant ul, .chat-msg.assistant ol { margin: var(--s1) 0; padding-left: 1.15rem; }
+  .chat-msg.assistant code { font-family: var(--font-mono, monospace); }
+  .chat-empty { margin: auto 0; font-size: .88rem; line-height: 1.5; }
+  .chat-composer { display: flex; flex-direction: column; gap: var(--s2); }
+  .chat-composer textarea { width: 100%; resize: vertical; }
+  .chat-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+  .chat-actions button { margin: 0; }
+  #chat-status { margin: 0; min-height: 1.1em; font-size: .82rem; }
+  /* Destructive but low-priority: red text plus a red-tinted edge, not a solid red fill. */
+  #chat-clear { border-color: color-mix(in srgb, var(--bad) 35%, var(--rule)); }
+  #chat-clear:hover { background: var(--bad-soft); color: var(--bad); border-color: var(--bad); }
+  @media (max-width: 600px) {
+    .chat-actions button, #chat-link-form button, #chat-close { min-height: 2.75rem; }
+    .chat-link-remove { min-width: 2.75rem; min-height: 2.75rem; }
+  }
 </style>
 {% endblock %}
 {% block content %}
@@ -256,6 +303,36 @@
 </aside>
 </div>
 
+<div class="chat-dock">
+  <button type="button" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4 19l.9-4.6A7.5 7.5 0 1 1 20 11.5z"/></svg>Ask about this paper</button>
+  <aside id="chat-panel" hidden role="dialog" aria-label="Chat about this paper">
+    <div class="chat-head">
+      <p class="card-title">Ask about this paper <span class="chat-ai">AI</span></p>
+      <button type="button" id="chat-close" aria-label="Close chat"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="chat-context">
+      <label for="chat-use-paper"><input type="checkbox" id="chat-use-paper" checked> Paper text</label>
+      <label for="chat-use-summary"><input type="checkbox" id="chat-use-summary"> Generated summary</label>
+      <ul id="chat-links"></ul>
+      <form id="chat-link-form">
+        <label class="visually-hidden" for="chat-link-url">Link to add as context</label>
+        <input type="text" id="chat-link-url" placeholder="https://…">
+        <button type="submit" class="secondary small">Add link</button>
+      </form>
+    </div>
+    <div id="chat-messages" aria-live="polite"></div>
+    <form id="chat-form" class="chat-composer">
+      <label class="visually-hidden" for="chat-input">Your question</label>
+      <textarea id="chat-input" rows="2" placeholder="Ask a question about this paper…"></textarea>
+      <div class="chat-actions">
+        <button type="submit" id="chat-send">Send</button>
+        <button type="button" id="chat-clear" class="danger" aria-label="Clear conversation">Clear</button>
+      </div>
+      <p id="chat-status" class="muted" role="status"></p>
+    </form>
+  </aside>
+</div>
+
 {% if state and state.status in ("running", "paused") %}
 <script>
 (function () {
@@ -315,5 +392,221 @@
     });
   };
   window.initGuideNav();
+</script>
+<script>
+  window.initChatDock = function () {
+    var chatBase = "/prepare/{{ sid }}/{{ row_index }}/chat";
+    var panel = document.getElementById("chat-panel");
+    var toggle = document.getElementById("chat-toggle");
+    var closeBtn = document.getElementById("chat-close");
+    var messagesEl = document.getElementById("chat-messages");
+    var form = document.getElementById("chat-form");
+    var input = document.getElementById("chat-input");
+    var sendBtn = document.getElementById("chat-send");
+    var statusEl = document.getElementById("chat-status");
+    var usePaper = document.getElementById("chat-use-paper");
+    var useSummary = document.getElementById("chat-use-summary");
+    var linksEl = document.getElementById("chat-links");
+    var linkForm = document.getElementById("chat-link-form");
+    var linkInput = document.getElementById("chat-link-url");
+    var clearBtn = document.getElementById("chat-clear");
+    if (!panel || !toggle || !form) return;
+    var links = [];
+    var pending = false;
+    var availability = {paper: false, summary: false};
+
+    function setStatus(text) { if (statusEl) statusEl.textContent = text || ""; }
+
+    async function readJson(response) {
+      try {
+        return await response.json();
+      } catch (e) {
+        return {error: "Could not reach the app server."};
+      }
+    }
+
+    function scrollToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function renderMessages(messages) {
+      messagesEl.replaceChildren();
+      if (!(messages || []).length) {
+        var hint = document.createElement("p");
+        hint.className = "chat-empty muted";
+        hint.textContent = "No questions yet. Ask about the paper's motivation, a result you did not follow, or how to frame a question for the speaker.";
+        messagesEl.appendChild(hint);
+        return;
+      }
+      (messages || []).forEach(function (m) {
+        var node = document.createElement("div");
+        node.className = "chat-msg " + (m.role === "user" ? "user" : "assistant");
+        if (m.role === "user") {
+          node.textContent = m.content;
+        } else {
+          node.innerHTML = m.html || "";
+        }
+        messagesEl.appendChild(node);
+      });
+      scrollToBottom();
+    }
+
+    function renderLinks(next) {
+      links = next || [];
+      linksEl.replaceChildren();
+      links.forEach(function (link) {
+        var row = document.createElement("li");
+        row.dataset.url = link.url;
+        var label = document.createElement("label");
+        var box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = true;
+        box.className = "chat-link-check";
+        var text = document.createElement("span");
+        text.className = "link-url";
+        text.textContent = link.title + " · " + link.chars + " chars" + (link.truncated ? " (partial)" : "");
+        label.appendChild(box);
+        label.appendChild(text);
+        row.appendChild(label);
+        var remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "chat-link-remove";
+        remove.setAttribute("aria-label", "Remove " + link.title);
+        remove.textContent = "×";
+        remove.addEventListener("click", function () { removeLink(link.url); });
+        row.appendChild(remove);
+        linksEl.appendChild(row);
+      });
+    }
+
+    function applyAvailability(data) {
+      availability.paper = !!data.paper_available;
+      availability.summary = !!data.summary_available;
+      usePaper.disabled = !availability.paper;
+      if (!availability.paper) usePaper.checked = false;
+      useSummary.disabled = !availability.summary;
+      if (!availability.summary) useSummary.checked = false;
+      updateHint();
+    }
+
+    function updateHint() {
+      var hints = [];
+      if (!availability.paper) {
+        hints.push("Paper text is not saved for this guide; regenerate the guide to chat with the paper.");
+      }
+      if (!availability.summary) hints.push("No generated summary yet.");
+      if (!availability.paper && !availability.summary && !links.length) {
+        hints.push("Add a link below to give the chat something to read.");
+      }
+      setStatus(hints.join(" "));
+    }
+
+    async function refresh() {
+      var response = await fetch(chatBase, {headers: {"Accept": "application/json"}});
+      var data = await readJson(response);
+      if (!response.ok) { setStatus(data.error || "Could not load the conversation."); return; }
+      renderMessages(data.messages);
+      renderLinks(data.links);
+      applyAvailability(data);
+    }
+
+    function open() {
+      panel.hidden = false;
+      toggle.setAttribute("aria-expanded", "true");
+      if (input) input.focus();
+    }
+
+    function close() {
+      panel.hidden = true;
+      toggle.setAttribute("aria-expanded", "false");
+      if (panel.contains(document.activeElement)) toggle.focus();
+    }
+
+    toggle.addEventListener("click", function () {
+      if (panel.hidden) { open(); refresh(); } else { close(); }
+    });
+    closeBtn.addEventListener("click", close);
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !panel.hidden) close();
+    });
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      if (pending) return;
+      var message = input.value.trim();
+      if (!message) { setStatus("Type a question first."); return; }
+      var body = new FormData();
+      body.append("message", message);
+      if (usePaper.checked) body.append("use_paper", "on");
+      if (useSummary.checked) body.append("use_summary", "on");
+      linksEl.querySelectorAll("li[data-url]").forEach(function (row) {
+        var box = row.querySelector(".chat-link-check");
+        if (box && box.checked) body.append("links", row.dataset.url);
+      });
+      pending = true;
+      sendBtn.disabled = true;
+      setStatus("Thinking…");
+      try {
+        var response = await fetch(chatBase, {method: "POST", body: body});
+        var data = await readJson(response);
+        if (response.ok) {
+          renderMessages(data.messages);
+          input.value = "";
+          updateHint();
+        } else {
+          setStatus(data.error || "Could not send that question.");
+        }
+      } finally {
+        pending = false;
+        sendBtn.disabled = false;
+        scrollToBottom();
+      }
+    });
+
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    linkForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      var url = linkInput.value.trim();
+      if (!url) { setStatus("Paste a link first."); return; }
+      var body = new FormData();
+      body.append("url", url);
+      setStatus("Fetching the link…");
+      var response = await fetch(chatBase + "/links", {method: "POST", body: body});
+      var data = await readJson(response);
+      if (response.ok) {
+        renderLinks(data.links);
+        linkInput.value = "";
+        updateHint();
+      } else {
+        setStatus(data.error || "Could not add that link.");
+      }
+    });
+
+    async function removeLink(url) {
+      var body = new FormData();
+      body.append("url", url);
+      var response = await fetch(chatBase + "/links/remove", {method: "POST", body: body});
+      var data = await readJson(response);
+      if (response.ok) { renderLinks(data.links); updateHint(); }
+      else { setStatus(data.error || "Could not remove that link."); }
+    }
+
+    clearBtn.addEventListener("click", async function () {
+      if (!confirm("Clear this conversation?")) return;
+      var response = await fetch(chatBase + "/clear", {method: "POST"});
+      var data = await readJson(response);
+      if (response.ok) { messagesEl.replaceChildren(); updateHint(); }
+      else { setStatus(data.error || "Could not clear the conversation."); }
+    });
+
+    refresh();
+  };
+  window.initChatDock();
 </script>
 {% endblock %}

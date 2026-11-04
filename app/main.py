@@ -1,12 +1,15 @@
 import logging
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
+from urllib.parse import urlparse
 
 import bleach
 import markdown as markdown_lib
 from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from markupsafe import Markup
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -55,6 +58,37 @@ templates.env.filters["markdown"] = render_markdown
 _active_generations: dict[tuple[str, int], bool] = {}
 _active_generations_lock = threading.Lock()
 _preparation_state_locks: dict[tuple[str, int], threading.Lock] = {}
+
+LINK_TEXT_LIMIT = 20_000
+MAX_CHAT_LINKS = 5
+MAX_CHAT_MESSAGE_CHARS = 4_000
+
+_chat_locks: dict[tuple[str, int], threading.Lock] = {}
+_chat_locks_guard = threading.Lock()
+
+
+def _chat_lock(sid: str, row_index: int) -> threading.Lock:
+    with _chat_locks_guard:
+        return _chat_locks.setdefault((sid, row_index), threading.Lock())
+
+
+class _ChatContextError(Exception):
+    """Raised when no usable chat context can be assembled for a request."""
+
+
+def _chat_links_json(links: list[dict]) -> list[dict]:
+    return [{"url": link.get("url", ""), "title": link.get("title", ""),
+             "chars": len(link.get("text") or ""),
+             "truncated": bool(link.get("truncated"))}
+            for link in links]
+
+
+def _chat_messages_json(messages: list[dict]) -> list[dict]:
+    return [{"role": message.get("role", "assistant"),
+             "content": message.get("content", ""),
+             "html": (str(render_markdown(message.get("content", "")))
+                      if message.get("role") == "assistant" else "")}
+            for message in messages]
 
 
 @app.get("/")
@@ -319,6 +353,8 @@ def _run_preparation(sid: str, row_index: int, query: str, row: dict) -> None:
             paper = arxiv.extract_paper(paper)
 
         source = _source_from_paper(paper)
+        if paper.get("paper_text"):
+            storage.save_paper_text(sid, row_index, paper["paper_text"])
 
         state = storage.load_generation_state(sid, row_index)
         if state is None:
@@ -477,19 +513,17 @@ async def _prepare_start(request: Request, sid: str, row_index: int,
     if state is None or state.get("status") not in ("running", "paused"):
         storage.clear_preparation(sid, row_index)
         storage.clear_sections(sid, row_index)
+        storage.clear_chat(sid, row_index)
+        storage.clear_paper_text(sid, row_index)
         state = _new_preparation_state(query)
         storage.save_generation_state(sid, row_index, state)
     _start_preparation_thread(sid, row_index, query, row)
     return RedirectResponse(f"/prepare/{sid}/{row_index}", status_code=303)
 
 
-async def _prepare_response(request: Request, sid: str, row_index: int,
-                             status_code: int = 200) -> Response:
-    rows, row, error = await _load_prepare_row(sid, row_index)
-    if error is not None:
-        return templates.TemplateResponse(
-            request=request, name="error.html", status_code=404,
-            context={"message": error})
+def _preparation_view(sid: str, row_index: int) -> tuple[dict | None, list[dict], dict | None]:
+    """Persisted generation state, sections, and the preparation record (synthesised from
+    the state when the final record is missing but sections exist)."""
     state = storage.load_generation_state(sid, row_index)
     sections = storage.load_sections(sid, row_index)
     preparation = storage.load_preparation(sid, row_index)
@@ -502,6 +536,62 @@ async def _prepare_response(request: Request, sid: str, row_index: int,
             "tokens": state.get("tokens", {}),
             "duration_seconds": state.get("duration_seconds", 0),
         }
+    return state, sections, preparation
+
+
+def _summary_context(preparation: dict) -> str:
+    parts = []
+    briefing = (preparation.get("short_briefing") or "").strip()
+    if briefing:
+        parts.append("### Executive briefing\n\n" + briefing)
+    prerequisites = (preparation.get("prerequisites") or "").strip()
+    if prerequisites:
+        parts.append("### Prerequisites\n\n" + prerequisites)
+    for section in preparation.get("sections") or []:
+        content = (section.get("content") or "").strip()
+        if not content:
+            continue
+        parts.append(f"### {section.get('title') or 'Section'}\n\n{content}")
+    return "\n\n".join(parts)
+
+
+def _build_chat_context(sid: str, row_index: int, preparation: dict | None,
+                        use_paper: bool, use_summary: bool,
+                        link_urls: list[str], links: list[dict]) -> str:
+    parts = []
+    if use_paper:
+        text = storage.load_paper_text(sid, row_index)
+        if text is None:
+            raise _ChatContextError(
+                "The paper text for this guide was not saved. Regenerate the preparation "
+                "guide to chat with the paper.")
+        parts.append("## Paper text\n\n" + text)
+        if (preparation or {}).get("source", {}).get("paper_text_truncated"):
+            parts.append("(The paper text was truncated before analysis.)")
+    if use_summary and preparation is not None:
+        summary = _summary_context(preparation)
+        if summary:
+            parts.append("## Generated preparation summary\n\n" + summary)
+    for link in links:
+        url = link.get("url", "")
+        if url not in link_urls:
+            continue
+        parts.append(f"## Source: {url}\n\n{link.get('text') or ''}")
+        if link.get("truncated"):
+            parts.append("(Only the beginning of this source is included.)")
+    if not parts:
+        raise _ChatContextError("Select at least one context source.")
+    return "\n\n".join(parts)
+
+
+async def _prepare_response(request: Request, sid: str, row_index: int,
+                             status_code: int = 200) -> Response:
+    rows, row, error = await _load_prepare_row(sid, row_index)
+    if error is not None:
+        return templates.TemplateResponse(
+            request=request, name="error.html", status_code=404,
+            context={"message": error})
+    state, sections, preparation = _preparation_view(sid, row_index)
     section_titles = state.get("section_titles", []) if state else []
     generation_error = state.get("error") if state and state.get("status") == "error" else None
     return templates.TemplateResponse(request=request, name="prepare.html",
@@ -567,6 +657,8 @@ async def prepare_clear(request: Request, sid: str, row_index: int):
         storage.clear_preparation(sid, row_index)
         storage.clear_sections(sid, row_index)
         storage.clear_generation_state(sid, row_index)
+        storage.clear_chat(sid, row_index)
+        storage.clear_paper_text(sid, row_index)
     return RedirectResponse(f"/prepare/{sid}/{row_index}", status_code=303)
 
 
@@ -604,6 +696,149 @@ async def prepare_resume(request: Request, sid: str, row_index: int):
     query = storage.load_generation_state(sid, row_index)["arxiv_query"] or row["paper"]
     _start_preparation_thread(sid, row_index, query, row)
     return RedirectResponse(f"/prepare/{sid}/{row_index}", status_code=303)
+
+
+@app.get("/prepare/{sid}/{row_index}/chat")
+async def chat_get(sid: str, row_index: int):
+    _, _, error = await _load_prepare_row(sid, row_index)
+    if error is not None:
+        return JSONResponse({"error": error}, status_code=404)
+    _, _, preparation = _preparation_view(sid, row_index)
+    chat = storage.load_chat(sid, row_index)
+    return {
+        "messages": _chat_messages_json(chat["messages"]),
+        "links": _chat_links_json(chat["links"]),
+        "paper_available": storage.load_paper_text(sid, row_index) is not None,
+        "summary_available": preparation is not None and bool(_summary_context(preparation)),
+    }
+
+
+@app.post("/prepare/{sid}/{row_index}/chat")
+async def chat_post(request: Request, sid: str, row_index: int):
+    _, _, error = await _load_prepare_row(sid, row_index)
+    if error is not None:
+        return JSONResponse({"error": error}, status_code=404)
+
+    form = await request.form()
+    message = str(form.get("message") or "").strip()
+    use_paper = form.get("use_paper") == "on"
+    use_summary = form.get("use_summary") == "on"
+    link_urls = [str(value) for value in form.getlist("links")]
+
+    if not message:
+        return JSONResponse({"error": "Type a question first."}, status_code=422)
+    if len(message) > MAX_CHAT_MESSAGE_CHARS:
+        return JSONResponse({"error": "That question is too long (4,000 characters max)."},
+                            status_code=422)
+
+    lock = _chat_lock(sid, row_index)
+    with lock:
+        stored_links = list(storage.load_chat(sid, row_index)["links"])
+    _, _, preparation = _preparation_view(sid, row_index)
+    try:
+        context = _build_chat_context(sid, row_index, preparation,
+                                      use_paper, use_summary, link_urls, stored_links)
+    except _ChatContextError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=409)
+
+    with lock:
+        chat = storage.load_chat(sid, row_index)
+        chat["messages"].append({"role": "user", "content": message})
+        storage.save_chat(sid, row_index, chat)
+        history = list(chat["messages"])
+
+    try:
+        reply = await run_in_threadpool(llm.answer_question, context, history)
+    except Exception as exc:
+        logger.exception("chat request failed for %s/%s", sid, row_index)
+        with lock:
+            chat = storage.load_chat(sid, row_index)
+            for position in range(len(chat["messages"]) - 1, -1, -1):
+                if (chat["messages"][position].get("role") == "user"
+                        and chat["messages"][position].get("content") == message):
+                    del chat["messages"][position]
+                    break
+            storage.save_chat(sid, row_index, chat)
+        return JSONResponse({"error": llm.describe_error(exc)}, status_code=502)
+
+    with lock:
+        chat = storage.load_chat(sid, row_index)
+        chat["messages"].append({"role": "assistant", "content": reply})
+        storage.save_chat(sid, row_index, chat)
+        messages = list(chat["messages"])
+    return {"messages": _chat_messages_json(messages)}
+
+
+@app.post("/prepare/{sid}/{row_index}/chat/links")
+async def chat_link_add(request: Request, sid: str, row_index: int):
+    _, _, error = await _load_prepare_row(sid, row_index)
+    if error is not None:
+        return JSONResponse({"error": error}, status_code=404)
+
+    form = await request.form()
+    url = str(form.get("url") or "").strip()
+    if not re.match(r"^https?://", url, re.IGNORECASE):
+        return JSONResponse({"error": "Enter a full http(s) link."}, status_code=422)
+
+    lock = _chat_lock(sid, row_index)
+    with lock:
+        links = storage.load_chat(sid, row_index)["links"]
+        if any(link.get("url") == url for link in links):
+            return JSONResponse({"error": "This link is already added."}, status_code=409)
+        if len(links) >= MAX_CHAT_LINKS:
+            return JSONResponse({"error": f"You can add at most {MAX_CHAT_LINKS} links."},
+                                status_code=409)
+
+    stub = {"arxiv_id": "", "url": url, "pdf_url": url, "title": "", "abstract": "",
+            "authors": [], "published": "", "categories": []}
+    try:
+        paper = await run_in_threadpool(arxiv.extract_paper, stub)
+    except RuntimeError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=422)
+    text = paper.get("paper_text") or ""
+
+    with lock:
+        chat = storage.load_chat(sid, row_index)
+        if any(link.get("url") == url for link in chat["links"]):
+            return JSONResponse({"error": "This link is already added."}, status_code=409)
+        chat["links"].append({"url": url, "title": urlparse(url).netloc or url,
+                              "text": text[:LINK_TEXT_LIMIT],
+                              "truncated": len(text) > LINK_TEXT_LIMIT})
+        storage.save_chat(sid, row_index, chat)
+        links = list(chat["links"])
+    return {"links": _chat_links_json(links)}
+
+
+@app.post("/prepare/{sid}/{row_index}/chat/links/remove")
+async def chat_link_remove(request: Request, sid: str, row_index: int):
+    _, _, error = await _load_prepare_row(sid, row_index)
+    if error is not None:
+        return JSONResponse({"error": error}, status_code=404)
+
+    form = await request.form()
+    url = str(form.get("url") or "").strip()
+    lock = _chat_lock(sid, row_index)
+    with lock:
+        chat = storage.load_chat(sid, row_index)
+        remaining = [link for link in chat["links"] if link.get("url") != url]
+        if len(remaining) == len(chat["links"]):
+            return JSONResponse({"error": "Link not found."}, status_code=404)
+        chat["links"] = remaining
+        storage.save_chat(sid, row_index, chat)
+    return {"links": _chat_links_json(remaining)}
+
+
+@app.post("/prepare/{sid}/{row_index}/chat/clear")
+async def chat_clear(sid: str, row_index: int):
+    _, _, error = await _load_prepare_row(sid, row_index)
+    if error is not None:
+        return JSONResponse({"error": error}, status_code=404)
+    lock = _chat_lock(sid, row_index)
+    with lock:
+        chat = storage.load_chat(sid, row_index)
+        chat["messages"] = []
+        storage.save_chat(sid, row_index, chat)
+    return {"messages": []}
 
 
 def _session_summaries() -> list[dict]:
